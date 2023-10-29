@@ -1,4 +1,4 @@
-name: GitHub Action
+name: Python
 run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
 on: [push, pull_request]
 jobs:
@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
             python-version: ${{ matrix.python-version }}
-            # cache: pipenv
+            cache: pipenv
 
       - name: Install dependencies
         run: |
