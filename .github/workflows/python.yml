@@ -1,0 +1,47 @@
+name: GitHub Action
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+            python-version: ${{ matrix.python-version }}
+            # cache: pipenv
+
+      - name: Install dependencies
+        run: |
+          cd py/
+          python -m pip install --upgrade pip
+          python -m pip install pipenv
+          pipenv install --dev
+          pipenv run pytest --version
+
+      - uses: chartboost/ruff-action@v1
+
+      - name: Test with pytest
+        run: |
+          cd py/
+          pipenv run pytest  --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+
+      - name: Test with shell
+        run: |
+          cd py/wordcount/tests
+          ./test.sh
+
+      - name: Upload pytest test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-results-${{ matrix.python-version }}
+          path: junit/test-results-${{ matrix.python-version }}.xml
+        if: ${{ always() }}
+
+
