@@ -1,5 +1,5 @@
 name: Python
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+run-name: ${{ github.actor }} for ${{ github.head_ref}} 🚀
 on: [push, pull_request]
 jobs:
   build:
