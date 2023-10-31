@@ -1,4 +1,5 @@
 name: Go build
+run-name: Pipeline run by @${{ github.actor }} on ${{ github.ref}} 🚀
 
 on:
   push:

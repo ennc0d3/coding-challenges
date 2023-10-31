@@ -1,5 +1,5 @@
 name: Python
-run-name: ${{ github.actor }} for ${{ github.head_ref}} 🚀
+run-name: Pipeline run by @${{ github.actor }} on ${{ github.ref}} 🚀
 on: [push, pull_request]
 jobs:
   build:
