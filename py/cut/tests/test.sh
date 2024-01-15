@@ -15,7 +15,6 @@ runTests() {
 
     idx=0
     modeOpts=("-f" "-c" "-b")
-    modeOpts=("-f")
 
     fieldOptsTestsCases=(
         # No matching delimiter, so print the line
@@ -28,16 +27,45 @@ runTests() {
         "-f 1,2,4 -d%"
         # Overlapping field ranges
         "-f 1,2-4  -d,"
-        # Overlapping explict duplicate fields
+        # Overlapping range, with duplicate fields
         "-f 2-4,4,5 -d, --output-delimiter=|"
     )
+    runTestLogic "${fieldOptsTestsCases[@]}"
 
-    for opt in "${fieldOptsTestsCases[@]}"; do
+    charOptsTestsCases=(
+        # No matching delimiter, so print the line
+        "-c 1,2"
+        # No matching delimiter, so print the line, output-delimiter specified but should be ignored
+        "-c 1,2 --output-delimiter=%"
+        # Basic case
+        "-c 1,2"
+        # Basic case, with output-delimter
+        "-c 1,2,4"
+        # Overlapping field ranges
+        "-c 1,2-4"
+        # Overlapping range, with duplicate fields
+        "-c 2-4,4,5 --output-delimiter=%"
+    )
+    runTestLogic "${charOptsTestsCases[@]}"
+
+    if [[ $(grep -c "FAIL" $outDir/runtest.log) -gt 0 ]]; then
+        echo "[ERROR]: One or more tests failed. see $outDir/runtest.log"
+        exit 1
+    else
+        echo "All tests passed"
+        exit 0
+    fi
+}
+
+runTestLogic() {
+
+    for opt in "$@"; do
         echo "OPT:[$opt]"
-        echo "# ----------------------------"
-        echo "# Test for [$TestProg ${opt} ${inputFile}]"
-        echo "# ----------------------------"
         for inputFile in testdata/*.csv; do
+            echo "# ----------------------------"
+            echo "# Test for [$TestProg ${opt} ${inputFile}]"
+            echo "# ----------------------------"
+
             idx=$((idx + 1))
             cmd="$TestProg ${opt} $inputFile"
             actCmd="$ActProg ${opt} $inputFile"
@@ -52,16 +80,8 @@ runTests() {
             ) | tee -a $outDir/runtest.log
         done
         echo "# ----------------------------"
-
     done
 
-    if [[ $(grep -c "FAIL" $outDir/runtest.log) -gt 0 ]]; then
-        echo "[ERROR]: One or more tests failed. see $outDir/runtest.log"
-        exit 1
-    else
-        echo "All tests passed"
-        exit 0
-    fi
 }
 
 parseArgs() {

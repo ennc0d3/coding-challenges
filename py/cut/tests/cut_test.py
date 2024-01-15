@@ -1,115 +1,59 @@
 """ Test for cut."""
 
-import argparse
-import io
-import string
-import textwrap
+import logging
 
 import cut
 import pytest
 
+logging.getLogger().setLevel(logging.DEBUG)
 
-class TestProcessData:
+
+class TestNormalizeFieldRange:
+    @pytest.mark.parametrize(
+        "test_input,test_expected",
+        [
+            pytest.param(
+                ["1", "4", "2"],
+                [1, 4, 2],
+                id="simple_normalize",
+            ),
+        ],
+    )
+    def test_normalize_field_range(self, test_input, test_expected):
+        output = cut.normalize_field_ranges(test_input)
+        assert output == test_expected
+
+    @pytest.mark.parametrize(
+        "test_input, test_exception",
+        [
+            pytest.param(
+                ["1", "1.2"],
+                cut.InvalidFieldRangeValueError,
+            ),
+            pytest.param(
+                ["1", "0x0A"],
+                cut.InvalidFieldRangeValueError,
+            ),
+        ],
+    )
+    def test_normalize_field_range_exceptions(self, test_input, test_exception):
+        with pytest.raises(test_exception):
+            cut.normalize_field_ranges(test_input)
+
+
+class TestProcessFieldOption:
     @pytest.mark.parametrize(
         "test_input, test_expected",
         [
             pytest.param(
-                textwrap.dedent(
-                    """\
-                        f0 f1 f2
-                        1 2 3
-                    """
-                ),
-                {
-                    0: ["f0 f1 f2"],
-                    1: ["1 2 3"],
-                },
-                id="simple_case",
+                [1, 2],
+                [
+                    ["f1\tf2"],
+                    ["0\t1"],
+                ],
             ),
         ],
     )
-    def test_process_text_data(self, test_input, test_expected):
-        fps = [io.StringIO(test_input)]
-        o = cut.process(
-            argparse.Namespace(
-                infiles=fps,
-                only_delimited=False,
-                bytes=False,
-                characters=False,
-                delimiter=string.whitespace,
-                fields=True,
-            ),
-            fps,
-        )
-        assert o == test_expected
-
-    @pytest.mark.parametrize(
-        "test_input, test_expected",
-        [
-            pytest.param(
-                textwrap.dedent(
-                    """\
-                    くṞ㈢ޞយଦᎮ
-                    こんにちは
-                    """
-                ),
-                {
-                    0: ["く", "Ṟ", "㈢", "ޞ", "យ", "ଦ", "Ꭾ"],
-                    1: ["こ", "ん", "に", "ち", "は"],
-                },
-                id="utf8-stiring",
-            ),
-        ],
-    )
-    def test_process_character_data(self, test_input, test_expected):
-        fps = [io.StringIO(test_input)]
-        o = cut.process(
-            argparse.Namespace(
-                infiles=fps,
-                only_delimited=False,
-                bytes=False,
-                characters=True,
-                delimiter=string.whitespace,
-                fields=False,
-            ),
-            fps,
-        )
-        assert o == test_expected
-
-    @pytest.mark.parametrize(
-        "test_input, test_expected",
-        [
-            pytest.param(
-                textwrap.dedent(
-                    """\
-                    🤦🏼‍♂️
-                    くṞ㈢ޞយଦᎮ
-                    """
-                ),
-                {
-                    0: "🤦🏼‍♂️",
-                    1: "くṞ㈢ޞយଦᎮ",
-                },
-                id="multiple_sequence_emoj",
-            ),
-            pytest.param(
-                "கற்க",
-                {0: "கற்க"},
-                id="multiple_byte_utf8-string",
-            ),
-        ],
-    )
-    def test_process_bytes_data(self, test_input, test_expected):
-        fps = [io.StringIO(test_input)]
-        o = cut.process(
-            argparse.Namespace(
-                infiles=fps,
-                only_delimited=False,
-                bytes=True,
-                characters=False,
-                delimiter=string.whitespace,
-                fields=False,
-            ),
-            fps,
-        )
-        assert o == test_expected
+    def test_normalize_field_range_exceptions(self, test_input, test_exception):
+        with pytest.raises(test_exception):
+            cut.normalize_field_ranges(test_input)

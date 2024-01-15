@@ -74,98 +74,51 @@ def process(args: argparse.Namespace, fileObjs: Sequence[IOBase]) -> Dict[int, A
 
 def output(args, result):
     args = args
-    fields = []
-    max_fields = len(max(result.values(), key=len))
     field_ranges = []
     if args.fields:
         field_ranges = normalize_field_ranges(args.fields)
         LOG.debug(">>>THe final FR:", field_ranges)
 
     if args.characters:
-        for field_range in args.characters:
-            LOG.debug("Field-Range: %s", field_range)
-            if "," in field_range:
-                indices = field_range.split(",")
-                fields.extend(map(int, indices))
-            elif " " in field_range:
-                indices = field_range.split()
-                fields.extend(map(int, indices))
-            elif "-" in field_range:
-                indices = field_range.split("-")
-                if len(indices) > 2:
-                    print("cut: invalid field range")
-                    sys.exit(2)
-                start, end = 1, max_fields
-                if len(indices[0]):
-                    start = int(indices[0])
-                if len(indices[1]):
-                    end = int(indices[1])
-                fields.extend(range(start, end + 1))
-            elif re.search(r"\d+", field_range):
-                fields.append(int(field_range))
-            else:
-                print("unsupported field range syntax")
-                sys.exit(2)
+        field_ranges = normalize_field_ranges(args.characters)
+        LOG.debug(">>>THe final FR:", field_ranges)
 
     byte_ranges_array = []
 
     if args.bytes:
-        intervals = []
-        # Already split by comma, so it is list
-        for field_range in args.bytes:
-            LOG.debug("Field-Range: %s", field_range)
-            if "," in field_range:
-                indices = field_range.split(",")
-                for i in indices:
-                    intervals.append([i, i])
-
-            elif " " in field_range:
-                indices = field_range.split()
-                for i in indices:
-                    intervals.append([i, i])
-
-            elif "-" in field_range:
-                indices = field_range.split("-")
-                if len(indices) > 2:
-                    print("cut: invalid field range")
-                    sys.exit(2)
-                start, end = 1, max_fields
-                if len(indices[0]):
-                    start = int(indices[0])
-                if len(indices[1]):
-                    end = int(indices[1])
-                for i in indices:
-                    intervals.append([start, end])
-
-            elif re.search(r"\d+", field_range):
-                intervals.append([int(field_range), int(field_range)])
-
-            else:
-                print("unsupported field range syntax")
-                sys.exit(2)
-
-        fields = list(dict.fromkeys(fields))
-        byte_ranges_array = merge_intervals(intervals)
-        LOG.debug("The sections to print : %s", fields)
-        LOG.debug("The ranges to print : %s", byte_ranges_array)
+        field_ranges = normalize_field_ranges(args.bytes)
+        LOG.debug(">>>THe final FR:", field_ranges)
 
     buf = StringIO()
 
-    # THe printing / split part
+    # For fields, the delimiter is applicable, so the result.Values is a list of columns for that particular
+    # line, which can be 1 or more columns
     if not args.bytes:
-        for columns in result.values():
-            for i, num in enumerate(field_ranges):
-                LOG.debug(
-                    "Print field no: %s, idx: %d, columns: %r, at idx: %r",
-                    num,
-                    i,
-                    columns,
-                    columns[: num - 1],
-                )
-                if num <= len(columns):
-                    if i > 0:
-                        buf.write(f"{args.output_delimiter}")
-                    buf.write(f"{columns[num-1]}")
+        LOG.debug(
+            ">>>>>>>>[[[[[[[[[The result values: %s, type: %s]]]]]]]<<<<<<",
+            result.values(),
+            type(result),
+        )
+        for cols in result.values():
+            LOG.debug("THe type of colume is %s, value: %s", type(cols), cols)
+            for i, fr in enumerate(field_ranges):
+                for j in range(fr):
+                    LOG.debug(
+                        "Print field no: %s, idx: %d, columns: <%r>\n, at idx: <%r>\n",
+                        fr,
+                        i,
+                        cols,
+                        cols[j],
+                    )
+                    if fr[1] <= len(cols):
+                        if i > 0:
+                            buf.write(f"{args.output_delimiter}")
+                        LOG.debug(
+                            "Writing to buf, type: %s, data: %s",
+                            type(cols),
+                            cols[j],
+                        )
+                        buf.write(f"{cols[j]}")
             buf.write("\n")
 
         buf.flush()
@@ -176,23 +129,23 @@ def output(args, result):
             "The number of overalapping ranges array: %s ",
             byte_ranges_array,
         )
-        for columns in result.values():
+        for cols in result.values():
             # print("CCONTENT---", columns)
             for i, num in enumerate(byte_ranges_array):
                 LOG.debug(
                     "Print byte end-offset: %d, columns:%r" "bytes[%d:%d]=%r",
                     num,
-                    columns,
+                    cols,
                     num[0],
                     num[1],
-                    columns[num[0] - 1 : num[1]],
+                    cols[num[0] - 1 : num[1]],
                 )
-                if num[1] <= len(columns):
+                if num[1] <= len(cols):
                     if i > 0:
                         # FIXME: Add the delimiter only in the non-overlaping range
                         LOG.debug("Writing the delimiter to the buffer")
                         outbuf.write(args.output_delimiter.encode())
-                    outbuf.write((columns[num[0] - 1 : num[1]]))
+                    outbuf.write((cols[num[0] - 1 : num[1]]))
             outbuf.write(b"\n")
         outbuf.flush()
         # outbuf.seek(0)
@@ -201,34 +154,25 @@ def output(args, result):
         print(data.decode("utf-8", errors="replace"), end="\n")
         # works
     else:
+        LOG.debug("Writing to stream")
         print(f"{buf.getvalue()}", end="")
     buf.close()
-
-
-def hexescape_str(buf_bytes):
-    hex = buf_bytes.hex()
-    r = "'"
-    p = 0
-    print(len(hex))
-    for i in range(2, len(hex) + 1, 2):
-        r += "\\x" + hex[p:i]
-        p = i
-    r += "'"
-    return r
 
 
 def merge_intervals(A):
     if not A:
         return []
     A.sort(key=lambda x: x[0])
+    LOG.debug("The A: %s", A)
     merged = [A[0]]
     for cur in A[1:]:
+        LOG.debug(">>>>>CHecking: %s", merged)
         prev = merged[-1]
         if cur[0] <= prev[1]:
             prev[1] = max(prev[1], cur[1])
         else:
             merged.append(cur)
-        print("The merged:", merged)
+    print("The merged:", merged)
     return merged
 
 
@@ -238,17 +182,22 @@ def normalized_merge_intervals(A):
         return []
     A.sort(key=lambda x: x[0])
     merged = [A[0]]
+    LOG.debug("The input A : %s", A)
     for cur in A[1:]:
+        LOG.debug("The cur: %s", cur)
         prev = merged[-1]
         if cur[0] <= prev[1]:
             prev_aslist = list(prev)
 
             prev_aslist[1] = max(prev[1], cur[1])
             prev = tuple(prev_aslist)
+            if prev not in merged:
+                merged.append(prev)
 
         else:
             merged.append(cur)
-        LOG.debug("The merged:", merged)
+    LOG.debug("The merged: %s", merged)
+    return merged
 
     # Normalize the tuple pairs to range
     frs = []
@@ -259,18 +208,11 @@ def normalized_merge_intervals(A):
             frs.append(pair[0])
 
     # Remove duplicates, preserving order
-    normalized_frs = []
-    for i, e in enumerate(frs):
-        if e not in frs[i + 1 :]:
-            normalized_frs.append(e)
-    return normalized_frs
-
-
-def hex_escape_str(in_str: str):
-    in_bytes = in_str.encode("utf-8")
-    hex_str = "".join([f"\\x{b:02x}" for b in in_bytes])
-    print("HEX:", hex_str)
-    return hex_str
+    # normalized_frs = []
+    # for i, e in enumerate(frs):
+    # if e not in frs[i + 1 :]:
+    # normalized_frs.append(e)
+    # return normalized_frs
 
 
 class ListRangeAction(argparse.Action):
@@ -291,19 +233,20 @@ class ListRangeAction(argparse.Action):
         setattr(namespace, self.dest, ranges)
 
 
-def normalize_field_ranges(field_ranges):
+def normalize_field_ranges(field_ranges):  # -> list[Any]:
+    """Given a list of ranges of the form,
+    n,m,n-m, n-, -m "n m" ** repeating form
+    returns an normalized range of the form ignoring the duplicates and in the
+    order of the input.
+
+    [(n,m), (n,n),...]"""
     max_fields = 1 << 16  # FIXME
     intervals = []
     out_field_ranges = []
     LOG.debug("The input field ranges: <%s>", field_ranges)
     for field_range in field_ranges:
         LOG.debug("Field-Range: %s", field_range)
-        if "," in field_range:
-            indices = field_range.split(",")
-            for i in indices:
-                out_field_ranges.append((i, i))
-
-        elif " " in field_range:
+        if " " in field_range:
             indices = field_range.split()
             out_field_ranges.append(tuple(**indices))
 
@@ -317,8 +260,7 @@ def normalize_field_ranges(field_ranges):
                 start = int(indices[0])
             if len(indices[1]):
                 end = int(indices[1])
-            for i in indices:
-                out_field_ranges.append((start, end))
+            out_field_ranges.append((start, end))
 
         elif re.search(r"\d+", field_range):
             out_field_ranges.append((int(field_range), int(field_range)))

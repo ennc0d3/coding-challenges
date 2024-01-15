@@ -29,3 +29,4 @@ The code is structured under [cut](cut) and is using [Pipenv](https://pipenv.pyp
 * endiness
 * Copying multi sequence emoj with zwj (always expands?)
 * Understand Pytest discovery, Structure of tests
+* The selected field ranges are print in the order they read not in the order they gave, which is not good for cut

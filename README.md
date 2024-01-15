@@ -12,7 +12,7 @@ Additionally, I am using these tasks to enhance the testing methods, GitHub acti
 
 | Challenge | Solutions |
 | :---      |:---         |
-| [Write you own wc tool](https://codingchallenges.fyi/challenges/challenge-wc>)| [py](py/wordcount/README.md) [go](go/wordcount/README.md)
+| [Write you own wc tool](https://codingchallenges.fyi/challenges/challenge-wc)| [py](py/wordcount/README.md) [go](go/wordcount/README.md)
 
 ### References
 

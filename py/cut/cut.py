@@ -3,6 +3,7 @@
 
 import argparse
 import logging
+import re
 import sys
 import textwrap
 
@@ -42,7 +43,7 @@ Rules:
 Task list:
  - Implement the usage structure and mark the ones not implemented as TODO - DONE
  - Implement the base case for text file and field option(basic option, a comma separated list) - DONE
- - Re-think about the structure / Test
+ - Re-think about the structure / Test - DONE 1 hr total
  - Implement the only-delimited option
  - Implement the range field options
  - Test the field options with the various ranges
@@ -88,14 +89,63 @@ def process_fields(args):
 # TODO: Probably move the validation part to the listAction action itself
 def normalize_field_ranges(field_ranges):
     r = []
-    for i in field_ranges:
-        try:
-            v = int(i)
-            r.append(v)
-        except ValueError as e:
-            LOG.debug(e)
-            raise InvalidFieldRangeValueError(f"cut: invalid field value '{i}'")
-    return r
+    for field_range in field_ranges:
+        if " " in field_range:
+            indices = field_range.split()
+            r.append(tuple(**indices))
+
+        elif "-" in field_range:
+            max_fields = 1 << 16
+            indices = field_range.split("-")
+            if len(indices) > 2:
+                raise InvalidFieldRangeValueError(
+                    f"cut: invalid field range '{field_range}'"
+                )
+            start, end = 1, max_fields
+            if len(indices[0]):
+                start = int(indices[0])
+            if len(indices[1]):
+                end = int(indices[1])
+            r.append((start, end))
+
+        elif re.search(r"\d+", field_range):
+            try:
+                v = int(field_range)
+                r.append((v, v))
+            except ValueError as e:
+                LOG.debug(e)
+                raise InvalidFieldRangeValueError(
+                    f"cut: invalid field value '{field_range}'"
+                )
+
+    LOG.info("The sections to print : %s", r)
+    intervals = normalized_merge_intervals(r)
+    LOG.debug("The ranges to print : %s", intervals)
+    return intervals
+
+
+def normalized_merge_intervals(A):
+    # this is a list of tuples
+    if not A:
+        return []
+    A.sort(key=lambda x: x[0])
+    merged = [A[0]]
+    LOG.debug("The input A : %s", A)
+    for cur in A[1:]:
+        LOG.debug("The cur: %s", cur)
+        prev = merged[-1]
+        if cur[0] <= prev[1]:
+            prev_aslist = list(prev)
+
+            prev_aslist[1] = max(prev[1], cur[1])
+            prev = tuple(prev_aslist)
+            if prev not in merged:
+                merged.append(prev)
+
+        else:
+            merged.append(cur)
+    LOG.debug("The merged: %s", merged)
+    return merged
 
 
 class InvalidFieldRangeValueError(Exception):
