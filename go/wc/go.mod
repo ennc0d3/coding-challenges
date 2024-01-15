@@ -1,4 +1,4 @@
-module github.com/ennc0d3/coding-challenges/wordcount
+module github.com/ennc0d3/coding-challenges/wc
 
 go 1.21.3
 

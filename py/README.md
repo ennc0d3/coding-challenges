@@ -23,4 +23,4 @@ The solutions are in their respective directory and it has an README.md which de
 | Challenge      | Solution                  |
 | -------------  | -------------             |
 | Cut tool       | [cut](./cut/README.md)              |
-| wc tool        | [wordcount](./wc/README.md)  |
+| wc tool        | [wc](./wc/README.md)  |

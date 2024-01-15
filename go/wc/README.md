@@ -6,7 +6,7 @@ The solution is nothing fancy, very simple and haven't invested time to make it 
 
 ## Solution
 
-The code is structured under [wordcount](wordcount) and implementation is straightforward due Golang
+The code is structured under [wc](wc) and implementation is straightforward due Golang
 
 ##
 
@@ -60,7 +60,7 @@ The output for the various options are same as that of the *wc* tool and it is v
 
 ### Development
 
-The module is called [wordcount](go.mod) and it uses *cobra* package for command line parsing, the logic is implemented in the package named [util](util)
+The module is called [wc](go.mod) and it uses *cobra* package for command line parsing, the logic is implemented in the package named [util](util)
 
 #### Build
 
