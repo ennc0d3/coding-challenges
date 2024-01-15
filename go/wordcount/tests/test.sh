@@ -1,1 +1,1 @@
-../../../py/wordcount/tests/test.sh
+../../../py/wc/tests/test.sh
