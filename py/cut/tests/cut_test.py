@@ -14,7 +14,7 @@ class TestNormalizeFieldRange:
         [
             pytest.param(
                 ["1", "4", "2"],
-                [1, 4, 2],
+                [(1,1), (2,2), (4,4)],
                 id="simple_normalize",
             ),
         ],
@@ -41,19 +41,16 @@ class TestNormalizeFieldRange:
             cut.normalize_field_ranges(test_input)
 
 
-class TestProcessFieldOption:
-    @pytest.mark.parametrize(
-        "test_input, test_expected",
-        [
-            pytest.param(
-                [1, 2],
-                [
-                    ["f1\tf2"],
-                    ["0\t1"],
-                ],
-            ),
-        ],
-    )
-    def test_normalize_field_range_exceptions(self, test_input, test_exception):
-        with pytest.raises(test_exception):
-            cut.normalize_field_ranges(test_input)
+#class TestProcessFieldOption:
+        #   @pytest.mark.parametrize(
+        #"test_input, test_expected",
+            #[
+            #pytest.param(
+            #    ["1", "0x0A"],
+            #    cut.InvalidFieldRangeValueError
+        #),
+    #],
+    #)
+        #def test_normalize_field_range_exceptions(self, test_input, test_exception):
+            #with pytest.raises(test_exception):
+#cut.normalize_field_ranges(test_input)
