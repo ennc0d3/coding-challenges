@@ -14,7 +14,6 @@ ActProg="cut"
 runTests() {
 
     idx=0
-    modeOpts=("-f" "-c" "-b")
 
     fieldOptsTestsCases=(
         # No matching delimiter, so print the line

@@ -6,15 +6,20 @@ import logging
 import re
 import sys
 import textwrap
+from ast import Tuple
 
 LOG = logging.getLogger()
 
 PROG = "cut"
 VERSION = "0.0.1"
-DESCRIPTION = """Print selected parts of lines from each FILE to standard output.
 
-                 With no FILE, or when FILE is -, read standard input.
-              """
+DESCRIPTION = textwrap.dedent(
+    """
+    Print selected parts of lines from each FILE to standard output.
+
+    With no FILE, or when FILE is -, read standard input.
+    """
+)
 
 EPILOG = textwrap.dedent(
     """
@@ -33,66 +38,72 @@ EPILOG = textwrap.dedent(
 DEFAULT_DELIM = "\t"
 
 
-"""TASKs
-
-Rules:
-    * Pomodoro and break
-    * Measure time for the task
-    * Use test and commit
-
-Task list:
- - Implement the usage structure and mark the ones not implemented as TODO - DONE
- - Implement the base case for text file and field option(basic option, a comma separated list) - DONE
- - Re-think about the structure / Test - DONE 1 hr total
- - Implement the only-delimited option
- - Implement the range field options
- - Test the field options with the various ranges
- - Implement basic character option
- - Implement the character option with the ranges
- - Implement the byte option basic
- - Implement the complex byte option
- - Test on the binary data
- - Implement complementing range
- - Push
-
-
-VSCODE: delete word in cursor?
-"""
-
-
 def run(args):
     process(args)
 
 
 def process(args: argparse.Namespace):
-    if args.fields:
-        process_fields(args)
+    LOG.debug("Processing, %s ", args)
 
-
-def process_fields(args):
-    LOG.debug("Processing fields, args:%s", args.fields)
     for fileobj in args.infiles:
-        # For each file, process data and print the fields
+        data = fileobj.read()
+        if not args.bytes:
+            if isinstance(data, bytes):
+                data = data.decode("utf-8")
 
-        data = fileobj.read().decode("utf-8")
         for line in data.splitlines():
-            fields = line.split(args.delimiter)
-            for rf in args.fields:
-                if rf < len(fields):
+            print(f"Next line: {line}", file=sys.stderr)
+            fields = []
+
+            if args.fields:
+                fields = line.split(args.delimiter)
+
+                if args.only_delimited and len(fields) == 1:
+                    continue
+
+                for start, end in args.fields:
+                    end = min(end, len(fields))
                     print(
-                        fields[rf],
-                        end=args.output_delimiter,
+                        *fields[start - 1 : end],
+                        sep=args.output_delimiter,
+                        end="",
                     )
+
+            elif args.characters:
+                fields = list(line)
+                delim = args.output_delimiter
+                for idx, (start, end) in enumerate(args.characters):
+                    if idx == len(args.characters) - 1:
+                        delim = ""
+                    print(*fields[start - 1 : end], sep="", end=delim)
+
+            elif args.bytes:
+                fields = line
+                delim = args.output_delimiter
+                for idx, (start, end) in enumerate(args.bytes):
+                    print(
+                        f"The {idx}, {start}:{end} and {fields}, {fields[start-1:end]}, {type(fields)}",
+                        file=sys.stderr,
+                    )
+                    if idx == len(args.bytes) - 1:
+                        delim = ""
+                    print(
+                        str(
+                            fields[start - 1 : end], encoding="utf-8", errors="replace"
+                        ),
+                        sep="",
+                        end=delim,
+                    )
+
             print()
 
 
-# TODO: Probably move the validation part to the listAction action itself
-def normalize_field_ranges(field_ranges):
+def normalize_list_ranges(field_ranges) -> list[Tuple]:
     r = []
     for field_range in field_ranges:
         if " " in field_range:
             indices = field_range.split()
-            r.append(tuple(**indices))
+            r.append(list(**indices))
 
         elif "-" in field_range:
             max_fields = 1 << 16
@@ -106,46 +117,43 @@ def normalize_field_ranges(field_ranges):
                 start = int(indices[0])
             if len(indices[1]):
                 end = int(indices[1])
-            r.append((start, end))
+            if start > end:
+                raise InvalidFieldRangeValueError("invalid decreasing range")
+            r.append([start, end])
 
         elif re.search(r"\d+", field_range):
             try:
                 v = int(field_range)
-                r.append((v, v))
+                r.append([v, v])
             except ValueError as e:
                 LOG.debug(e)
                 raise InvalidFieldRangeValueError(
                     f"cut: invalid field value '{field_range}'"
                 )
 
-    LOG.info("The sections to print : %s", r)
-    intervals = normalized_merge_intervals(r)
+    LOG.debug("The normalized interval: %s", r)
+    intervals = merge_overlapping_intervals(r)
     LOG.debug("The ranges to print : %s", intervals)
     return intervals
 
 
-def normalized_merge_intervals(A):
-    # this is a list of tuples
-    if not A:
-        return []
-    A.sort(key=lambda x: x[0])
-    merged = [A[0]]
-    LOG.debug("The input A : %s", A)
-    for cur in A[1:]:
-        LOG.debug("The cur: %s", cur)
-        prev = merged[-1]
-        if cur[0] <= prev[1]:
-            prev_aslist = list(prev)
+def merge_overlapping_intervals(x):
+    """Merge overlapping intervals without preserving order."""
+    x.sort(key=lambda i: i[0])
 
-            prev_aslist[1] = max(prev[1], cur[1])
-            prev = tuple(prev_aslist)
-            if prev not in merged:
-                merged.append(prev)
+    ans = []
+    ans.append(x[0])
 
+    for cur in x[1:]:
+        last = ans[-1]
+
+        if cur[0] <= last[1]:
+            new_end = max(last[1], cur[1])
+            last[1] = new_end
         else:
-            merged.append(cur)
-    LOG.debug("The merged: %s", merged)
-    return merged
+            ans.append(cur)
+
+    return ans
 
 
 class InvalidFieldRangeValueError(Exception):
@@ -168,7 +176,7 @@ class ListRangeAction(argparse.Action):
         if values and isinstance(values, str):
             ranges = values.split(",")
             try:
-                ranges = normalize_field_ranges(ranges)
+                ranges = normalize_list_ranges(ranges)
             except InvalidFieldRangeValueError as e:
                 raise argparse.ArgumentError(self, str(e))
 
@@ -263,7 +271,7 @@ def getargs():
         nargs="*",
         metavar="FILE",
         type=argparse.FileType("rb"),
-        default=[sys.stdin],
+        default=[sys.stdin.buffer],
         help="The name of the input files",
     )
 
@@ -278,6 +286,9 @@ def getargs():
 
     args = parser.parse_args()
 
+    if len(args.delimiter) > 1:
+        parser.error("the delimiter must be a single character")
+
     if args.delimiter != DEFAULT_DELIM and any([args.bytes, args.characters]):
         parser.error(
             "an input delimiter may be specified only when operating on fields"
@@ -286,6 +297,12 @@ def getargs():
     # By default the input delimiter is used for output_delimiter
     if not args.output_delimiter:
         args.output_delimiter = args.delimiter if args.fields else ""  # FIXME:
+
+    # Options that are valid only in case of field
+    if args.only_delimited and not args.fields:
+        parser.error(
+            "suppressing non-delimited lines make sense only when operating on fields"
+        )
 
     return args
 
@@ -297,9 +314,10 @@ def setup_logging(args):
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     ch.setFormatter(formatter)
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.WARN)
     LOG.addHandler(ch)
     logLevel = logging.WARN
+
     if args.verbose == 1:
         logLevel = logging.INFO
     elif args.verbose > 1:
@@ -309,12 +327,36 @@ def setup_logging(args):
 
 
 def main():
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.WARN)
     args = getargs()
     setup_logging(args)
+
     LOG.info("Starting %s", PROG)
     run(args)
 
 
 if __name__ == "__main__":
     main()
+
+
+"""TASKs
+
+Rules:
+    * Pomodoro and break
+    * Measure time for the task
+    * Use test and commit
+
+Task list:
+
+ - Implement basic character option
+ - Implement the character option with the ranges
+ - Implement the byte option basic
+ - Implement the complex byte option
+ - Test on the binary data
+ - Implement complementing range
+ - Push
+ - Implement the only-delimited option
+
+
+VSCODE: delete word in cursor?
+"""
