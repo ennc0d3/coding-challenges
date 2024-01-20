@@ -1,10 +1,10 @@
-package wc
+package cmd
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/ennc0d3/coding-challenges/wordcount/util"
+	"github.com/ennc0d3/coding-challenges/wc/util"
 	"github.com/spf13/cobra"
 )
 

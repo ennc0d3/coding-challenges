@@ -1,0 +1,1 @@
+../../../py/wc/tests/test.sh

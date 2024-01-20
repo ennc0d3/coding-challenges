@@ -25,15 +25,15 @@ jobs:
 
     - name: Go Build
       run: |
-        cd go/wordcount
+        cd go/wc
         go build  -o ./wc ./
 
     - name: Go Test
       run: |
-        cd go/wordcount
+        cd go/wc
         go test -v ./...
 
     - name: Test with shell
       run: |
-        cd go/wordcount/tests
+        cd go/wc/tests
         ./test.sh -p ../wc
