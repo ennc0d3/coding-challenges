@@ -147,7 +147,7 @@ class TestProcessData:
     )
     def test_process_character_data(self, test_input, test_expected, capfd):
         fps = [io.StringIO(test_input)]
-        o = cut.process(
+        cut.process(
             argparse.Namespace(
                 infiles=fps,
                 only_delimited=False,
