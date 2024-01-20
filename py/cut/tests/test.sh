@@ -27,7 +27,7 @@ runTests() {
         # Overlapping field ranges
         "-f 1,2-4  -d,"
         # Overlapping range, with duplicate fields
-        "-f 2-4,4,5 -d, --output-delimiter=|"
+        "-f 2-4,4,5 -d, --output-delimiter=%"
     )
     runTestLogic "${fieldOptsTestsCases[@]}"
 
@@ -72,7 +72,7 @@ runTestLogic() {
         echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName="testdata/fourchords.csv"
-        if [[ "$opt" =~ | ]]; then
+        if [[ "$opt" =~ ".*\|" ]]; then
             fileName=$(echo "$opt" | cut -f2 -d"|")
         fi
 
