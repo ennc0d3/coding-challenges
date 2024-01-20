@@ -52,7 +52,6 @@ def process(args: argparse.Namespace):
                 data = data.decode("utf-8")
 
         for line in data.splitlines():
-            print(f"Next line: {line}", file=sys.stderr)
             fields = []
 
             if args.fields:
@@ -61,30 +60,32 @@ def process(args: argparse.Namespace):
                 if args.only_delimited and len(fields) == 1:
                     continue
 
-                for start, end in args.fields:
+                for idx, (start, end) in enumerate(args.fields):
                     end = min(end, len(fields))
+                    delim = args.output_delimiter
+                    if idx == len(args.fields) - 1 or end >= len(fields):
+                        delim = ""
+
                     print(
                         *fields[start - 1 : end],
                         sep=args.output_delimiter,
-                        end="",
+                        end=delim,
                     )
 
             elif args.characters:
                 fields = list(line)
                 delim = args.output_delimiter
                 for idx, (start, end) in enumerate(args.characters):
-                    if idx == len(args.characters) - 1:
+                    end = min(end, len(fields))
+                    if idx == len(args.characters) - 1 or end >= len(fields):
                         delim = ""
-                    print(*fields[start - 1 : end], sep="", end=delim)
+                    if len(fields[start - 1 : end]) > 0:
+                        print(*fields[start - 1 : end], sep="", end=delim)
 
             elif args.bytes:
                 fields = line
                 delim = args.output_delimiter
                 for idx, (start, end) in enumerate(args.bytes):
-                    print(
-                        f"The {idx}, {start}:{end} and {fields}, {fields[start-1:end]}, {type(fields)}",
-                        file=sys.stderr,
-                    )
                     if idx == len(args.bytes) - 1:
                         delim = ""
                     print(
