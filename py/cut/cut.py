@@ -88,6 +88,7 @@ def process(args: argparse.Namespace):
                 for idx, (start, end) in enumerate(args.bytes):
                     if idx == len(args.bytes) - 1:
                         delim = ""
+                    # FIXME: Just print the raw bytes and leave the decoding to terminal?
                     print(
                         str(
                             fields[start - 1 : end], encoding="utf-8", errors="replace"
