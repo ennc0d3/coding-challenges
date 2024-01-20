@@ -71,7 +71,7 @@ runTestLogic() {
     for opt in "$@"; do
         echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
-        fileName="testdata/fourchords.lcsv"
+        fileName="testdata/fourchords.csv"
         if [[ "$opt" =~ | ]]; then
             fileName=$(echo "$opt" | cut -f2 -d"|")
         fi

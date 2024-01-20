@@ -339,26 +339,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-"""TASKs
-
-Rules:
-    * Pomodoro and break
-    * Measure time for the task
-    * Use test and commit
-
-Task list:
-
- - Implement basic character option
- - Implement the character option with the ranges
- - Implement the byte option basic
- - Implement the complex byte option
- - Test on the binary data
- - Implement complementing range
- - Push
- - Implement the only-delimited option
-
-
-VSCODE: delete word in cursor?
-"""
