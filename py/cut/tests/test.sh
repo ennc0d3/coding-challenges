@@ -67,7 +67,6 @@ runTests() {
 runTestLogic() {
 
     for opt in "$@"; do
-        echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName="testdata/fourchords.csv"
         if [[ "$opt" =~ ".*\|" ]]; then
@@ -100,7 +99,6 @@ runTestCharLogic() {
     idx=0
 
     for opt in "$@"; do
-        echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName=$(echo "$opt" | cut -f2 -d"|")
         expected=$(echo "$opt" | cut -f3 -d"|")
