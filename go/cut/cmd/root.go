@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -229,44 +230,67 @@ func process(input io.Reader, delimiter, outputDelimiter, dataType string, range
 
 		switch dataType {
 		case "char":
-			chars := line
-			log.Debug().Msgf("Chars: [%s]", chars)
-			for _, interval := range rangeList {
-				if len(chars) > 0 {
-					fmt.Printf("%s", chars[interval.Start-1:interval.End])
+			runeCount := utf8.RuneCountInString(line)
+			runeValues := []rune(line)
+
+			for i, interval := range rangeList {
+
+				if interval.Start > runeCount {
+					continue
 				}
 
+				interval.End = min(interval.End, runeCount)
+				log.Debug().Msgf("Printing chars:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
+					line[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
+				if i > 0 && i < len(rangeList) {
+					fmt.Printf("%s", outputDelimiter)
+				}
+				fmt.Printf("%s", string(runeValues[interval.Start-1:interval.End]))
 			}
+
 		case "byte":
 			bytes := []byte(line)
 			log.Debug().Msgf("bytes: [%v]", bytes)
-			for _, interval := range rangeList {
+			for i, interval := range rangeList {
 
-				if len(bytes) > 0 {
-					log.Debug().Msgf("Printing bytes:%v", bytes[interval.Start-1:interval.End])
-					fmt.Printf("%s", bytes[interval.Start-1:interval.End])
+				if interval.Start > len(bytes) {
+					continue
 				}
+
+				interval.End = min(interval.End, len(bytes))
+				log.Debug().Msgf("Printing bytes:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
+					bytes[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
+				if i > 0 && i < len(rangeList) {
+					fmt.Printf("%s", outputDelimiter)
+				}
+				fmt.Printf("%s", string(bytes[interval.Start-1:interval.End]))
+
 			}
 		case "field":
 			fields := strings.Split(line, delimiter)
-			log.Debug().Msgf("fields: %v", fields)
+			log.Debug().Msgf("fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
 
 			if len(fields) == 1 && onlyDelimited {
 				continue
 			}
 
-			for _, interval := range rangeList {
+			for j, interval := range rangeList {
 				interval.End = min(interval.End, len(fields))
 				if interval.Start > len(fields) {
 					continue
 				}
-				log.Debug().Msgf("Printing fields:%v", fields[interval.Start-1:interval.End])
-				for i, f := range fields[interval.Start-1 : interval.End] {
-					if (i + interval.Start - 1) >= len(fields)-1 {
-						fmt.Printf("%s", f)
-					} else {
-						fmt.Printf("%s%s", f, outputDelimiter)
+				interval.End = min(interval.End, len(fields))
+
+				selected_fields := fields[interval.Start-1 : interval.End]
+				log.Debug().Msgf("Printing fields:%v, len of fields: %d", selected_fields, len(selected_fields))
+				for i, field := range selected_fields {
+					if i > 0 && i < len(selected_fields) {
+						fmt.Printf("%s", outputDelimiter)
 					}
+					fmt.Printf("%s", field)
+				}
+				if j != len(rangeList)-1 {
+					fmt.Printf("%s", outputDelimiter)
 				}
 			}
 		default:

@@ -135,6 +135,31 @@ func TestProcess(t *testing.T) {
 			want:            "Hello\n",
 		},
 		{
+			name:            "process char data type",
+			input:           "Hello,World",
+			outputDelimiter: "|",
+			dataType:        "char",
+			rangeList:       []Range{{Start: 1, End: 1}, {Start: 2, End: 5}},
+			want:            "H|ello\n",
+		},
+		{
+			name:            "process char data type multline",
+			input:           "Hello,World\nHow Are You",
+			outputDelimiter: "|",
+			dataType:        "char",
+			rangeList:       []Range{{Start: 1, End: 5}},
+			want:            "Hello\nHow A\n",
+		},
+		// grapheme cluster are not supported
+		{
+			name:            "process unicode string type multiline",
+			input:           "Ծﺀ⇥⇝ហី꒺\n\nநிற்க அதற்குத்",
+			outputDelimiter: "%",
+			dataType:        "char",
+			rangeList:       []Range{{Start: 1, End: 3}, {Start: 5, End: 7}},
+			want:            "Ծﺀ⇥%ហី꒺\n\nநிற%க அ\n",
+		},
+		{
 			name:            "process byte data type",
 			input:           "Hello,World",
 			outputDelimiter: "|",
@@ -142,6 +167,25 @@ func TestProcess(t *testing.T) {
 			rangeList:       []Range{{Start: 1, End: 5}},
 			want:            "Hello\n",
 		},
+		{
+			name:  "multiple_sequence_emoj",
+			input: "🤦🏼‍♂️\n🤦🏼‍♂️\nくṞ㈢ޞយଦ",
+
+			outputDelimiter: "%",
+			rangeList:       []Range{{Start: 1, End: 4}},
+			dataType:        "byte",
+			want:            "🤦\n🤦\nく\xe1\n",
+			//want: "🤦\n🤦\nく�\n", //TODO: Understand why it doesn't print replacement character instead of \xe1
+		},
+		{
+			name:            "multiple_byte_utf8-string",
+			input:           "கற்க கற்க\nHello,World",
+			outputDelimiter: "%",
+			rangeList:       []Range{{Start: 1, End: 12}, {Start: 14, End: 22}},
+			dataType:        "byte",
+			want:            "கற்க%கற்\nHello,World\n",
+		},
+
 		{
 			name:            "process field data type",
 			input:           "Hello,World",
@@ -153,13 +197,23 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name:            "process field data type multiple ranges",
-			input:           "Hello,World,How,Are,You",
+			input:           "Hello,World,How,Are,You,Today",
 			delimiter:       ",",
 			outputDelimiter: "|",
 			dataType:        "field",
 			rangeList:       []Range{{Start: 1, End: 2}, {Start: 4, End: 9999}},
-			want:            "Hello|World|Are|You\n",
+			want:            "Hello|World|Are|You|Today\n",
 		},
+		{
+			name:            "process field data type multiple ranges multiple lines",
+			input:           "f1,f2,f3,f4,f5,f6\n1,2,3,4,5,6\na,b,c,d,e,f",
+			delimiter:       ",",
+			outputDelimiter: "|",
+			dataType:        "field",
+			rangeList:       []Range{{Start: 1, End: 2}, {Start: 5, End: 9999}},
+			want:            "f1|f2|f5|f6\n1|2|5|6\na|b|e|f\n",
+		},
+
 		{
 			name:            "process invalid data type",
 			input:           "Hello,World",
@@ -193,6 +247,9 @@ func TestProcess(t *testing.T) {
 
 			if outStr := string(out); outStr != tt.want {
 				t.Errorf("process() = [%v], want [%v]", outStr, tt.want)
+				t.Errorf("Hex: process() = [% x], want [% x]", outStr, tt.want)
+				t.Errorf("Quoted: process() = [%q], want [%q]", outStr, tt.want)
+
 			}
 
 		})
