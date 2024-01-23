@@ -80,7 +80,7 @@ func TestProcessInput(t *testing.T) {
 		delimiter       string
 		outputDelimiter string
 		dataType        string
-		rangeList       []Range
+		rangeList       string
 	}{
 		{
 			name:            "no files provided",
@@ -88,7 +88,7 @@ func TestProcessInput(t *testing.T) {
 			delimiter:       ",",
 			outputDelimiter: "|",
 			dataType:        "string",
-			rangeList:       []Range{{Start: 1, End: 3}},
+			rangeList:       "1-3",
 		},
 		{
 			name:            "single file provided",
@@ -96,7 +96,7 @@ func TestProcessInput(t *testing.T) {
 			delimiter:       "\t",
 			outputDelimiter: ",",
 			dataType:        "int",
-			rangeList:       []Range{{Start: 1, End: 5}},
+			rangeList:       "1-5",
 		},
 		{
 			name:            "multiple files provided",
@@ -104,7 +104,7 @@ func TestProcessInput(t *testing.T) {
 			delimiter:       "|",
 			outputDelimiter: "\t",
 			dataType:        "float",
-			rangeList:       []Range{{Start: 1, End: 10}},
+			rangeList:       "1-10",
 		},
 	}
 

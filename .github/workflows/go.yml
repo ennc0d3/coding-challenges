@@ -23,15 +23,10 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-    - name: Generate list of modules
-      id: generate-modules
-      run: |
-        modules=$(find go -name go.mod -exec dirname {} \; | jq -R -s -c 'split("\n")[:-1]')
-        echo "::set-output name=modules::$modules"
 
     - name: Go Build
       run: |
-        for module in $(echo "${{ steps.generate-modules.outputs.modules }}" | jq -r '.[]'); do
+        for module in $(find go -name go.mod -exec dirname {} \;); do
           cd $module
           go build -o ./$(basename $module) ./
           cd -
@@ -39,7 +34,7 @@ jobs:
 
     - name: Go Test
       run: |
-        for module in $(echo "${{ steps.generate-modules.outputs.modules }}" | jq -r '.[]'); do
+        for module in $(find go -name go.mod -exec dirname {} \;); do
           cd $module
           go test -v -coverprofile=coverage.out ./...
           go tool cover -html=coverage.out
@@ -48,7 +43,7 @@ jobs:
 
     - name: Test with shell
       run: |
-        for module in $(echo "${{ steps.generate-modules.outputs.modules }}" | jq -r '.[]'); do
+        for module in $(find go -name go.mod -exec dirname {} \;); do
           cd $module/tests
           ./test.sh -p ../$(basename $module)
           cd -
