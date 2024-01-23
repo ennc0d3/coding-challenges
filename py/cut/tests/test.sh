@@ -66,8 +66,6 @@ runTests() {
 
 runTestLogic() {
 
-    set -x
-
     for opt in "$@"; do
         echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
@@ -116,9 +114,9 @@ runTestCharLogic() {
         (echo -e "$expected" >"$outDir"/"$idx".exp)
         (
             if diff -w "$outDir"/"$idx".act "$outDir"/"$idx".exp; then
-                echo "$fileName: OK"
+                echo "$cmd: OK"
             else
-                echo "$fileName: FAIL"
+                echo "$cmd: FAIL"
             fi
         ) | tee -a "$outDir"/runtest.log
         echo "# ----------------------------"

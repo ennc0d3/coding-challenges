@@ -21,6 +21,22 @@ type Range struct {
 	End   int
 }
 
+func checkOnlyOneSet(flags ...*string) error {
+	var setFlag string
+	for _, flag := range flags {
+		if *flag != "" {
+			if setFlag != "" {
+				return errors.New("only one type of list may be specified")
+			}
+			setFlag = *flag
+		}
+	}
+	if setFlag == "" {
+		return errors.New("you must specify a list of bytes, characters or fields")
+	}
+	return nil
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "cut",
 	Short: "cut is a utility that cuts out sections from each line of files",
@@ -31,10 +47,12 @@ var rootCmd = &cobra.Command{
 		chars, _ := cmd.Flags().GetString("characters")
 		fields, _ := cmd.Flags().GetString("fields")
 
+		if err := checkOnlyOneSet(&bytes, &chars, &fields); err != nil {
+			return err
+		}
+
 		delimiter, _ := cmd.Flags().GetString("delimiter")
 		outputDelimiter, _ := cmd.Flags().GetString("output-delimiter")
-
-		log.Debug().Msgf("Delim: [%v]", delimiter)
 
 		// Check that the delimiter is empty when operating on bytes or characters
 		if (bytes != "" || chars != "") && delimiter != "" {
@@ -52,10 +70,6 @@ var rootCmd = &cobra.Command{
 			cmd.Flags().Set("output-delimiter", delimiter)
 		}
 
-		if bytes == "" && chars == "" && fields == "" {
-			return errors.New("you must specify a list of bytes, characters or fields")
-		}
-
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
@@ -63,43 +77,24 @@ var rootCmd = &cobra.Command{
 		switch {
 		case verbosity == 1:
 			zerolog.SetGlobalLevel(zerolog.InfoLevel)
-		case verbosity > 2:
+		case verbosity >= 2:
 			zerolog.SetGlobalLevel(zerolog.DebugLevel)
 		default:
 			zerolog.SetGlobalLevel(zerolog.WarnLevel)
 		}
-		// Parse the range lists
 
 		switch {
 		case bytes != "":
 			log.Debug().Msg("Bytes mode")
-			bytesRanges, err := parseRangeList(bytes)
-			log.Debug().Msgf("Bytes Ranges: [%v]", bytesRanges)
-			if err != nil {
-				fmt.Println("Error parsing bytes range list:", err)
-				return
-			}
-			processInput(args, delimiter, outputDelimiter, "byte", bytesRanges)
+			processInput(args, delimiter, outputDelimiter, "byte", bytes)
 
 		case characters != "":
 			log.Debug().Msg("Characters mode")
-			charactersRanges, err := parseRangeList(characters)
-			log.Debug().Msgf("Characters Ranges: [%v] ", charactersRanges)
-			if err != nil {
-				fmt.Println("Error parsing characters range list:", err)
-				return
-			}
-			processInput(args, delimiter, outputDelimiter, "char", charactersRanges)
+			processInput(args, delimiter, outputDelimiter, "char", characters)
 
 		case fields != "":
 			log.Debug().Msg("Fields mode")
-			fieldsRanges, err := parseRangeList(fields)
-			log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
-			if err != nil {
-				fmt.Println("Error parsing fields range list:", err)
-				return
-			}
-			processInput(args, delimiter, outputDelimiter, "field", fieldsRanges)
+			processInput(args, delimiter, outputDelimiter, "field", fields)
 		}
 
 	},
@@ -203,19 +198,25 @@ func parseRangeList(rangeList string) ([]Range, error) {
 	return mergedRanges, nil
 }
 
-func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList []Range) {
+func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string) {
+
+	fieldsRanges, err := parseRangeList(rangeList)
+	log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error parsing fields range list")
+	}
+
 	if len(files) == 0 {
-		// No files provided, read from stdin
-		process(os.Stdin, delimiter, outputDelimiter, dataType, rangeList)
+		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges)
 	} else {
-		// Process each file
 		for _, file := range files {
 			f, err := os.Open(file)
 			if err != nil {
-				log.Error().Err(err).Msgf("Failed to open file: %s", file)
+				log.Error().Err(err).Msg("Failed to open file")
+				fmt.Printf("Failed to open file: %s\n", file) /*  */
 				continue
 			}
-			process(f, delimiter, outputDelimiter, dataType, rangeList)
+			process(f, delimiter, outputDelimiter, dataType, fieldsRanges)
 			f.Close()
 		}
 	}
@@ -230,69 +231,12 @@ func process(input io.Reader, delimiter, outputDelimiter, dataType string, range
 
 		switch dataType {
 		case "char":
-			runeCount := utf8.RuneCountInString(line)
-			runeValues := []rune(line)
-
-			for i, interval := range rangeList {
-
-				if interval.Start > runeCount {
-					continue
-				}
-
-				interval.End = min(interval.End, runeCount)
-				log.Debug().Msgf("Printing chars:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
-					line[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
-				if i > 0 && i < len(rangeList) {
-					fmt.Printf("%s", outputDelimiter)
-				}
-				fmt.Printf("%s", string(runeValues[interval.Start-1:interval.End]))
-			}
+			handleCharType(line, rangeList, outputDelimiter)
 
 		case "byte":
-			bytes := []byte(line)
-			log.Debug().Msgf("bytes: [%v]", bytes)
-			for i, interval := range rangeList {
-
-				if interval.Start > len(bytes) {
-					continue
-				}
-
-				interval.End = min(interval.End, len(bytes))
-				log.Debug().Msgf("Printing bytes:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
-					bytes[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
-				if i > 0 && i < len(rangeList) {
-					fmt.Printf("%s", outputDelimiter)
-				}
-				fmt.Printf("%s", string(bytes[interval.Start-1:interval.End]))
-
-			}
+			handleByteType(line, rangeList, outputDelimiter)
 		case "field":
-			fields := strings.Split(line, delimiter)
-			log.Debug().Msgf("fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
-
-			if len(fields) == 1 && onlyDelimited {
-				continue
-			}
-
-			for j, interval := range rangeList {
-				interval.End = min(interval.End, len(fields))
-				if interval.Start > len(fields) {
-					continue
-				}
-				interval.End = min(interval.End, len(fields))
-
-				selected_fields := fields[interval.Start-1 : interval.End]
-				log.Debug().Msgf("Printing fields:%v, len of fields: %d", selected_fields, len(selected_fields))
-				for i, field := range selected_fields {
-					if i > 0 && i < len(selected_fields) {
-						fmt.Printf("%s", outputDelimiter)
-					}
-					fmt.Printf("%s", field)
-				}
-				if j != len(rangeList)-1 {
-					fmt.Printf("%s", outputDelimiter)
-				}
-			}
+			handleFieldType(line, delimiter, outputDelimiter, rangeList)
 		default:
 			fmt.Println("Invalid data type. Must be 'char', 'byte', or 'field'.")
 			return
@@ -301,6 +245,71 @@ func process(input io.Reader, delimiter, outputDelimiter, dataType string, range
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading input:", err)
+	}
+}
+
+func handleFieldType(line string, delimiter string, outputDelimiter string, rangeList []Range) {
+	fields := strings.Split(line, delimiter)
+	log.Debug().Msgf("field mode, fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
+
+	if len(fields) == 1 && onlyDelimited {
+		return
+	}
+	line_fields := make([]string, 0)
+	for _, interval := range rangeList {
+		if interval.Start > len(fields) {
+			continue
+		}
+		interval.End = min(interval.End, len(fields))
+
+		selected_fields := fields[interval.Start-1 : interval.End]
+		line_fields = append(line_fields, selected_fields...)
+
+		log.Debug().Msgf("Printing fields:%v, len of fields: %d, all_fields: %v", selected_fields, len(selected_fields), line_fields)
+
+	}
+	fmt.Printf("%s", strings.Join(line_fields, outputDelimiter))
+}
+
+func handleByteType(line string, rangeList []Range, outputDelimiter string) {
+	bytes := []byte(line)
+	log.Debug().Msgf("byte mode: bytes: [%v]", bytes)
+	for i, interval := range rangeList {
+
+		if interval.Start > len(bytes) {
+			continue
+		}
+
+		interval.End = min(interval.End, len(bytes))
+		log.Debug().Msgf("Printing bytes:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
+			bytes[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
+		if i > 0 && i < len(rangeList) {
+			fmt.Printf("%s", outputDelimiter)
+		}
+		fmt.Printf("%s", string(bytes[interval.Start-1:interval.End]))
+
+	}
+}
+
+func handleCharType(line string, rangeList []Range, outputDelimiter string) {
+
+	log.Debug().Msg("char mode")
+	runeCount := utf8.RuneCountInString(line)
+	runeValues := []rune(line)
+
+	for i, interval := range rangeList {
+
+		if interval.Start > runeCount {
+			continue
+		}
+
+		interval.End = min(interval.End, runeCount)
+		log.Debug().Msgf("Printing chars:%s, i: %d, interval(%d:%d), output-delimiter: [%s]",
+			line[interval.Start-1:interval.End], i, interval.Start, interval.End, outputDelimiter)
+		if i > 0 && i < len(rangeList) {
+			fmt.Printf("%s", outputDelimiter)
+		}
+		fmt.Printf("%s", string(runeValues[interval.Start-1:interval.End]))
 	}
 }
 
