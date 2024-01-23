@@ -66,10 +66,7 @@ runTests() {
 
 runTestLogic() {
 
-    set -x
-
     for opt in "$@"; do
-        echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName="testdata/fourchords.csv"
         if [[ "$opt" =~ ".*\|" ]]; then
@@ -87,9 +84,9 @@ runTestLogic() {
         ($actCmd >"$outDir"/"$idx".exp)
         (
             if diff -w "$outDir"/"$idx".act "$outDir"/"$idx".exp; then
-                echo "$fileName: OK"
+                echo "$cmd: OK"
             else
-                echo "$fileName: FAIL"
+                echo "$cmd: FAIL"
             fi
         ) | tee -a "$outDir"/runtest.log
         echo "# ----------------------------"
@@ -102,7 +99,6 @@ runTestCharLogic() {
     idx=0
 
     for opt in "$@"; do
-        echo "OPT:[$opt]"
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName=$(echo "$opt" | cut -f2 -d"|")
         expected=$(echo "$opt" | cut -f3 -d"|")
@@ -116,9 +112,9 @@ runTestCharLogic() {
         (echo -e "$expected" >"$outDir"/"$idx".exp)
         (
             if diff -w "$outDir"/"$idx".act "$outDir"/"$idx".exp; then
-                echo "$fileName: OK"
+                echo "$cmd: OK"
             else
-                echo "$fileName: FAIL"
+                echo "$cmd: FAIL"
             fi
         ) | tee -a "$outDir"/runtest.log
         echo "# ----------------------------"

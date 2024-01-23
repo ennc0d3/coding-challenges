@@ -23,17 +23,28 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
+
     - name: Go Build
       run: |
-        cd go/wc
-        go build  -o ./wc ./
+        for module in $(find go -name go.mod -exec dirname {} \;); do
+          cd $module
+          go build -o ./$(basename $module) ./
+          cd -
+        done
 
     - name: Go Test
       run: |
-        cd go/wc
-        go test -v ./...
+        for module in $(find go -name go.mod -exec dirname {} \;); do
+          cd $module
+          go test -v -coverprofile=coverage.out ./...
+          go tool cover -html=coverage.out
+          cd -
+        done
 
     - name: Test with shell
       run: |
-        cd go/wc/tests
-        ./test.sh -p ../wc
+        for module in $(find go -name go.mod -exec dirname {} \;); do
+          cd $module/tests
+          ./test.sh -p ../$(basename $module)
+          cd -
+        done

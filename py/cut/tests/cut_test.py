@@ -133,12 +133,14 @@ class TestProcessData:
                     """\
                     くṞ㈢ޞយଦᎮ
                     こんにちは
+                    கற்க
                     """
                 ),
                 textwrap.dedent(
                     """\
                     く%Ṟ
                     こ%ん
+                    க%ற
                     """
                 ),
                 id="utf8-string",
