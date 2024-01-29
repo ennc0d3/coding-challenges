@@ -1,6 +1,6 @@
 module github.com/ennc0d3/coding-challenges/wc
 
-go 1.21.3
+go 1.21
 
 require (
 	github.com/google/go-cmp v0.6.0

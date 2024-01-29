@@ -185,7 +185,6 @@ func TestProcess(t *testing.T) {
 			dataType:        "byte",
 			want:            "கற்க%கற்\nHello,World\n",
 		},
-
 		{
 			name:            "process field data type",
 			input:           "Hello,World",

@@ -1,6 +1,6 @@
 module github.com/enncod3/coding-challenges/cut
 
-go 1.21.6
+go 1.21
 
 require (
 	github.com/rs/zerolog v1.31.0
