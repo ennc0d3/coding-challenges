@@ -8,8 +8,6 @@ The solution is nothing fancy, very simple and haven't invested time to make it 
 
 The code is structured under [wc](wc) and implementation is straightforward due Golang
 
-##
-
 ### Usage
 
 ```bash
