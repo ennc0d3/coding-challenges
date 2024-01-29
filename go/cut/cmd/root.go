@@ -62,12 +62,18 @@ var rootCmd = &cobra.Command{
 		if delimiter == "" {
 			log.Debug().Msg("No delimiter specified, using tab")
 			delimiter = "\t"
-			cmd.Flags().Set("delimiter", delimiter)
+			err := cmd.Flags().Set("delimiter", delimiter)
+			if err != nil {
+				return err
+			}
 		}
 
 		if outputDelimiter == "" && fields != "" {
 			log.Debug().Msg("No output delimiter specified, using input delimiter")
-			cmd.Flags().Set("output-delimiter", delimiter)
+			err := cmd.Flags().Set("output-delimiter", delimiter)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
