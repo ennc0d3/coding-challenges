@@ -17,5 +17,11 @@ Additionally, I am using these tasks to enhance the testing methods, GitHub acti
 
 ### References
 
+#### Unix commandline utilities
+
+[Art of Command line](https://github.com/jlevy/the-art-of-command-line)
+
+#### Code Editing
+
 [Shortcut Dojo](https://www.shortcutfoo.com/)
 [Preview Programming Fonts](https://www.programmingfonts.org/#font3270)

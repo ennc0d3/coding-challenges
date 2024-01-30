@@ -114,5 +114,5 @@ The  [testdata](testdata) is used which to compare alignment with **cut** to run
 * For fun used zerolog for logging
 
 ### Issues/Todo
-
+* Reuse the tests in coreutils, Example the [cut tests](https://github.com/coreutils/coreutils/blob/master/tests/cut/cut.pl)
 * Limited emoj support,meaning the emoj that are joined are counted as multiple characters not as we humans see
