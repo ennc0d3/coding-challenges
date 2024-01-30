@@ -2,24 +2,20 @@ package cmd
 
 import (
 	"bufio"
+	Bytes "bytes"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/enncod3/coding-challenges/cut/rangeutil"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
-
-type Range struct {
-	Start int
-	End   int
-}
 
 type CutError string
 
@@ -101,19 +97,20 @@ var rootCmd = &cobra.Command{
 		}
 
 		complement, _ := cmd.Flags().GetBool("complement")
+		zeroTerminated, _ := cmd.Flags().GetBool("zero-terminated")
 
 		switch {
 		case bytes != "":
 			log.Debug().Msg("Bytes mode")
-			processInput(args, delimiter, outputDelimiter, "byte", bytes, complement)
+			processInput(args, delimiter, outputDelimiter, "byte", bytes, complement, zeroTerminated)
 
 		case characters != "":
 			log.Debug().Msg("Characters mode")
-			processInput(args, delimiter, outputDelimiter, "char", characters, complement)
+			processInput(args, delimiter, outputDelimiter, "char", characters, complement, zeroTerminated)
 
 		case fields != "":
 			log.Debug().Msg("Fields mode")
-			processInput(args, delimiter, outputDelimiter, "field", fields, complement)
+			processInput(args, delimiter, outputDelimiter, "field", fields, complement, zeroTerminated)
 		}
 
 	},
@@ -143,123 +140,23 @@ func init() {
 	rootCmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
 }
 
-func parseRangeList(rangeList string) ([]Range, error) {
-	ranges := strings.Split(rangeList, ",")
-	parsedRanges := make([]Range, 0, len(ranges))
+func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement, zeroTerminated bool) {
 
-	for _, r := range ranges {
-
-		if !strings.Contains(r, "-") {
-			value, err := strconv.Atoi(r)
-			if err != nil {
-				return nil, err
-			}
-			parsedRanges = append(parsedRanges, Range{Start: value, End: value})
-
-		} else {
-			bounds := strings.Split(r, "-")
-
-			if len(bounds) == 2 && (bounds[0] == "" && bounds[1] == "") {
-				return nil, fmt.Errorf("invalid range with no endpoint: %s", r)
-			}
-
-			var start, end int
-			var err error
-
-			if bounds[0] != "" {
-				start, err = strconv.Atoi(bounds[0])
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				start = 1
-			}
-
-			if len(bounds) > 1 && bounds[1] != "" {
-				end, err = strconv.Atoi(bounds[1])
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				end = int(^uint(0) >> 1) // Maximum int value
-			}
-
-			parsedRanges = append(parsedRanges, Range{Start: start, End: end})
-		}
-
-	}
-
-	// Sort the ranges by start value
-	sort.Slice(parsedRanges, func(i, j int) bool {
-		return parsedRanges[i].Start < parsedRanges[j].Start
-	})
-
-	// Merge overlapping ranges
-	mergedRanges := make([]Range, 0, len(parsedRanges))
-	currentRange := parsedRanges[0]
-
-	for _, r := range parsedRanges[1:] {
-		if r.Start <= currentRange.End {
-			// If the current range overlaps with the next one, merge them
-			if r.End > currentRange.End {
-				currentRange.End = r.End
-			}
-		} else {
-			// If the current range does not overlap with the next one, add it to the list and move on to the next one
-			mergedRanges = append(mergedRanges, currentRange)
-			currentRange = r
-		}
-	}
-
-	// Add the last range
-	mergedRanges = append(mergedRanges, currentRange)
-
-	return mergedRanges, nil
-}
-
-func complementRangeList(rangeList []Range, max int) ([]Range, error) {
-	// Sort the range list
-	sort.Slice(rangeList, func(i, j int) bool {
-		return rangeList[i].Start < rangeList[j].Start
-	})
-
-	complementRanges := make([]Range, 0, len(rangeList))
-	current := 1
-
-	for _, r := range rangeList {
-		if r.Start > current {
-			complementRanges = append(complementRanges, Range{Start: current, End: r.Start - 1})
-		}
-		if r.End < max {
-			if r.End+1 > current {
-				current = r.End + 1
-			}
-			if r == rangeList[len(rangeList)-1] {
-				complementRanges = append(complementRanges, Range{Start: current, End: max})
-			}
-		}
-	}
-
-	return complementRanges, nil
-}
-
-func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement bool) {
-
-	fieldsRanges, err := parseRangeList(rangeList)
+	fieldsRanges, err := rangeutil.ParseRangeList(rangeList)
 	log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
 	if err != nil {
 		log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
 	}
 
 	if complement {
-		fieldsRanges, err = complementRangeList(fieldsRanges, int(^uint(0)>>1))
+		fieldsRanges, err = rangeutil.ComplementRangeList(fieldsRanges, int(^uint(0)>>1))
 		if err != nil {
 			log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
 		}
 	}
 
 	if len(files) == 0 {
-		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges)
+		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges, zeroTerminated)
 	} else {
 		for _, file := range files {
 			f, err := os.Open(file)
@@ -268,16 +165,36 @@ func processInput(files []string, delimiter, outputDelimiter, dataType string, r
 				fmt.Printf("%s: %s\n", fileOpenError, file) /*  */
 				continue
 			}
-			process(f, delimiter, outputDelimiter, dataType, fieldsRanges)
+			process(f, delimiter, outputDelimiter, dataType, fieldsRanges, zeroTerminated)
 			f.Close()
 		}
 	}
 }
 
-func process(input io.Reader, delimiter, outputDelimiter, dataType string, rangeList []Range) {
+func splitOnNulTerminator(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := Bytes.IndexByte(data, '\000'); i >= 0 {
+		return i + 1, data[0:i], nil
+	}
+	if atEOF {
+		return len(data), data, bufio.ErrFinalToken
+	}
+	return 0, nil, nil
+}
 
-	log.Debug().Msgf("Processing input dataType: [%s] with delimiter [%s], rangeList: [%v] and output delimiter [%s]", dataType, delimiter, rangeList, outputDelimiter)
+func process(input io.Reader, fieldDelimiter, outputDelimiter, dataType string, rangeList []rangeutil.Range, zeroTerminated bool) {
+
+	log.Debug().Msgf("Processing input dataType: [%s] with fieldDelimiter [%s], rangeList: [%v] and output delimiter [%s]", dataType, fieldDelimiter, rangeList, outputDelimiter)
 	scanner := bufio.NewScanner(input)
+	lineTerminator := "\n"
+	if zeroTerminated {
+		log.Debug().Msg("Zero terminated mode")
+		scanner.Split(splitOnNulTerminator)
+		lineTerminator = "\000"
+	}
+	log.Debug().Msgf("Line terminator: [%s]", lineTerminator)
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -288,25 +205,30 @@ func process(input io.Reader, delimiter, outputDelimiter, dataType string, range
 		case "byte":
 			handleByteType(line, rangeList, outputDelimiter)
 		case "field":
-			handleFieldType(line, delimiter, outputDelimiter, rangeList)
+			handleFieldType(line, fieldDelimiter, outputDelimiter, rangeList)
 		default:
 			fmt.Println("Invalid data type. Must be 'char', 'byte', or 'field'.")
 			return
 		}
-		fmt.Println()
+		fmt.Printf("%s", lineTerminator)
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading input:", err)
 	}
 }
 
-func handleFieldType(line string, delimiter string, outputDelimiter string, rangeList []Range) {
+func handleFieldType(line string, delimiter, outputDelimiter string, rangeList []rangeutil.Range) {
 	fields := strings.Split(line, delimiter)
 	log.Debug().Msgf("field mode, fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
 
 	if len(fields) == 1 && onlyDelimited {
 		return
 	}
+
+	if outputDelimiter == "" {
+		outputDelimiter = delimiter
+	}
+
 	line_fields := make([]string, 0)
 	for _, interval := range rangeList {
 		if interval.Start > len(fields) {
@@ -323,7 +245,7 @@ func handleFieldType(line string, delimiter string, outputDelimiter string, rang
 	fmt.Printf("%s", strings.Join(line_fields, outputDelimiter))
 }
 
-func handleByteType(line string, rangeList []Range, outputDelimiter string) {
+func handleByteType(line string, rangeList []rangeutil.Range, outputDelimiter string) {
 	bytes := []byte(line)
 	log.Debug().Msgf("byte mode: bytes: [%v]", bytes)
 	for i, interval := range rangeList {
@@ -343,7 +265,7 @@ func handleByteType(line string, rangeList []Range, outputDelimiter string) {
 	}
 }
 
-func handleCharType(line string, rangeList []Range, outputDelimiter string) {
+func handleCharType(line string, rangeList []rangeutil.Range, outputDelimiter string) {
 
 	log.Debug().Msg("char mode")
 	runeCount := utf8.RuneCountInString(line)
