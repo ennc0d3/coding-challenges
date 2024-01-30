@@ -41,7 +41,8 @@ runTests() {
         "-c 1,2-4|testdata/sample.txt|ABCD\nGHIJ\nMNOP\nSTUV\n\nYZ"
         # Overlapping range, with duplicate fields
         "-c 2-4,4,5 --output-delimiter=%|testdata/unicode.txt|ﺀ⇥⇝%ហ\n⤥ሪᙂ%ฉ"
-
+        "-c 2-6 --complement |testdata/sample.txt|A\nG\nM\nS\n\nY"
+        "-c 2- --complement |testdata/sample.txt|A\nG\nM\nS\n\nY"
     )
     runTestCharLogic "${charOptsTestsCases[@]}"
 

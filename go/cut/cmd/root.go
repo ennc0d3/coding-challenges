@@ -21,6 +21,17 @@ type Range struct {
 	End   int
 }
 
+type CutError string
+
+func (e CutError) Error() string {
+	return string(e)
+}
+
+var (
+	fileOpenError        = CutError("Failed to open file")
+	parseFieldRangeError = CutError("Failed to parse field range")
+)
+
 func checkOnlyOneSet(flags ...*string) error {
 	var setFlag string
 	for _, flag := range flags {
@@ -89,18 +100,20 @@ var rootCmd = &cobra.Command{
 			zerolog.SetGlobalLevel(zerolog.WarnLevel)
 		}
 
+		complement, _ := cmd.Flags().GetBool("complement")
+
 		switch {
 		case bytes != "":
 			log.Debug().Msg("Bytes mode")
-			processInput(args, delimiter, outputDelimiter, "byte", bytes)
+			processInput(args, delimiter, outputDelimiter, "byte", bytes, complement)
 
 		case characters != "":
 			log.Debug().Msg("Characters mode")
-			processInput(args, delimiter, outputDelimiter, "char", characters)
+			processInput(args, delimiter, outputDelimiter, "char", characters, complement)
 
 		case fields != "":
 			log.Debug().Msg("Fields mode")
-			processInput(args, delimiter, outputDelimiter, "field", fields)
+			processInput(args, delimiter, outputDelimiter, "field", fields, complement)
 		}
 
 	},
@@ -204,12 +217,45 @@ func parseRangeList(rangeList string) ([]Range, error) {
 	return mergedRanges, nil
 }
 
-func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string) {
+func complementRangeList(rangeList []Range, max int) ([]Range, error) {
+	// Sort the range list
+	sort.Slice(rangeList, func(i, j int) bool {
+		return rangeList[i].Start < rangeList[j].Start
+	})
+
+	complementRanges := make([]Range, 0, len(rangeList))
+	current := 1
+
+	for _, r := range rangeList {
+		if r.Start > current {
+			complementRanges = append(complementRanges, Range{Start: current, End: r.Start - 1})
+		}
+		if r.End < max {
+			if r.End+1 > current {
+				current = r.End + 1
+			}
+			if r == rangeList[len(rangeList)-1] {
+				complementRanges = append(complementRanges, Range{Start: current, End: max})
+			}
+		}
+	}
+
+	return complementRanges, nil
+}
+
+func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement bool) {
 
 	fieldsRanges, err := parseRangeList(rangeList)
 	log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error parsing fields range list")
+		log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
+	}
+
+	if complement {
+		fieldsRanges, err = complementRangeList(fieldsRanges, int(^uint(0)>>1))
+		if err != nil {
+			log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
+		}
 	}
 
 	if len(files) == 0 {
@@ -218,8 +264,8 @@ func processInput(files []string, delimiter, outputDelimiter, dataType string, r
 		for _, file := range files {
 			f, err := os.Open(file)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to open file")
-				fmt.Printf("Failed to open file: %s\n", file) /*  */
+				log.Error().Err(err).Msg(fileOpenError.Error())
+				fmt.Printf("%s: %s\n", fileOpenError, file) /*  */
 				continue
 			}
 			process(f, delimiter, outputDelimiter, dataType, fieldsRanges)
