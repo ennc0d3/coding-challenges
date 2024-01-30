@@ -7,20 +7,15 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/enncod3/coding-challenges/cut/rangeutil"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
-
-type Range struct {
-	Start int
-	End   int
-}
 
 type CutError string
 
@@ -145,116 +140,16 @@ func init() {
 	rootCmd.PersistentFlags().CountVarP(&verbosity, "verbose", "v", "verbose output")
 }
 
-func parseRangeList(rangeList string) ([]Range, error) {
-	ranges := strings.Split(rangeList, ",")
-	parsedRanges := make([]Range, 0, len(ranges))
-
-	for _, r := range ranges {
-
-		if !strings.Contains(r, "-") {
-			value, err := strconv.Atoi(r)
-			if err != nil {
-				return nil, err
-			}
-			parsedRanges = append(parsedRanges, Range{Start: value, End: value})
-
-		} else {
-			bounds := strings.Split(r, "-")
-
-			if len(bounds) == 2 && (bounds[0] == "" && bounds[1] == "") {
-				return nil, fmt.Errorf("invalid range with no endpoint: %s", r)
-			}
-
-			var start, end int
-			var err error
-
-			if bounds[0] != "" {
-				start, err = strconv.Atoi(bounds[0])
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				start = 1
-			}
-
-			if len(bounds) > 1 && bounds[1] != "" {
-				end, err = strconv.Atoi(bounds[1])
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				end = int(^uint(0) >> 1) // Maximum int value
-			}
-
-			parsedRanges = append(parsedRanges, Range{Start: start, End: end})
-		}
-
-	}
-
-	// Sort the ranges by start value
-	sort.Slice(parsedRanges, func(i, j int) bool {
-		return parsedRanges[i].Start < parsedRanges[j].Start
-	})
-
-	// Merge overlapping ranges
-	mergedRanges := make([]Range, 0, len(parsedRanges))
-	currentRange := parsedRanges[0]
-
-	for _, r := range parsedRanges[1:] {
-		if r.Start <= currentRange.End {
-			// If the current range overlaps with the next one, merge them
-			if r.End > currentRange.End {
-				currentRange.End = r.End
-			}
-		} else {
-			// If the current range does not overlap with the next one, add it to the list and move on to the next one
-			mergedRanges = append(mergedRanges, currentRange)
-			currentRange = r
-		}
-	}
-
-	// Add the last range
-	mergedRanges = append(mergedRanges, currentRange)
-
-	return mergedRanges, nil
-}
-
-func complementRangeList(rangeList []Range, max int) ([]Range, error) {
-	// Sort the range list
-	sort.Slice(rangeList, func(i, j int) bool {
-		return rangeList[i].Start < rangeList[j].Start
-	})
-
-	complementRanges := make([]Range, 0, len(rangeList))
-	current := 1
-
-	for _, r := range rangeList {
-		if r.Start > current {
-			complementRanges = append(complementRanges, Range{Start: current, End: r.Start - 1})
-		}
-		if r.End < max {
-			if r.End+1 > current {
-				current = r.End + 1
-			}
-			if r == rangeList[len(rangeList)-1] {
-				complementRanges = append(complementRanges, Range{Start: current, End: max})
-			}
-		}
-	}
-
-	return complementRanges, nil
-}
-
 func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement, zeroTerminated bool) {
 
-	fieldsRanges, err := parseRangeList(rangeList)
+	fieldsRanges, err := rangeutil.ParseRangeList(rangeList)
 	log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
 	if err != nil {
 		log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
 	}
 
 	if complement {
-		fieldsRanges, err = complementRangeList(fieldsRanges, int(^uint(0)>>1))
+		fieldsRanges, err = rangeutil.ComplementRangeList(fieldsRanges, int(^uint(0)>>1))
 		if err != nil {
 			log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
 		}
@@ -289,7 +184,7 @@ func splitOnNulTerminator(data []byte, atEOF bool) (advance int, token []byte, e
 	return 0, nil, nil
 }
 
-func process(input io.Reader, fieldDelimiter, outputDelimiter, dataType string, rangeList []Range, zeroTerminated bool) {
+func process(input io.Reader, fieldDelimiter, outputDelimiter, dataType string, rangeList []rangeutil.Range, zeroTerminated bool) {
 
 	log.Debug().Msgf("Processing input dataType: [%s] with fieldDelimiter [%s], rangeList: [%v] and output delimiter [%s]", dataType, fieldDelimiter, rangeList, outputDelimiter)
 	scanner := bufio.NewScanner(input)
@@ -322,7 +217,7 @@ func process(input io.Reader, fieldDelimiter, outputDelimiter, dataType string, 
 	}
 }
 
-func handleFieldType(line string, delimiter, outputDelimiter string, rangeList []Range) {
+func handleFieldType(line string, delimiter, outputDelimiter string, rangeList []rangeutil.Range) {
 	fields := strings.Split(line, delimiter)
 	log.Debug().Msgf("field mode, fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
 
@@ -350,7 +245,7 @@ func handleFieldType(line string, delimiter, outputDelimiter string, rangeList [
 	fmt.Printf("%s", strings.Join(line_fields, outputDelimiter))
 }
 
-func handleByteType(line string, rangeList []Range, outputDelimiter string) {
+func handleByteType(line string, rangeList []rangeutil.Range, outputDelimiter string) {
 	bytes := []byte(line)
 	log.Debug().Msgf("byte mode: bytes: [%v]", bytes)
 	for i, interval := range rangeList {
@@ -370,7 +265,7 @@ func handleByteType(line string, rangeList []Range, outputDelimiter string) {
 	}
 }
 
-func handleCharType(line string, rangeList []Range, outputDelimiter string) {
+func handleCharType(line string, rangeList []rangeutil.Range, outputDelimiter string) {
 
 	log.Debug().Msg("char mode")
 	runeCount := utf8.RuneCountInString(line)
