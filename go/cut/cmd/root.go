@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	Bytes "bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -101,19 +102,20 @@ var rootCmd = &cobra.Command{
 		}
 
 		complement, _ := cmd.Flags().GetBool("complement")
+		zeroTerminated, _ := cmd.Flags().GetBool("zero-terminated")
 
 		switch {
 		case bytes != "":
 			log.Debug().Msg("Bytes mode")
-			processInput(args, delimiter, outputDelimiter, "byte", bytes, complement)
+			processInput(args, delimiter, outputDelimiter, "byte", bytes, complement, zeroTerminated)
 
 		case characters != "":
 			log.Debug().Msg("Characters mode")
-			processInput(args, delimiter, outputDelimiter, "char", characters, complement)
+			processInput(args, delimiter, outputDelimiter, "char", characters, complement, zeroTerminated)
 
 		case fields != "":
 			log.Debug().Msg("Fields mode")
-			processInput(args, delimiter, outputDelimiter, "field", fields, complement)
+			processInput(args, delimiter, outputDelimiter, "field", fields, complement, zeroTerminated)
 		}
 
 	},
@@ -243,7 +245,7 @@ func complementRangeList(rangeList []Range, max int) ([]Range, error) {
 	return complementRanges, nil
 }
 
-func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement bool) {
+func processInput(files []string, delimiter, outputDelimiter, dataType string, rangeList string, complement, zeroTerminated bool) {
 
 	fieldsRanges, err := parseRangeList(rangeList)
 	log.Debug().Msgf("Fields Ranges: [%v]", fieldsRanges)
@@ -259,7 +261,7 @@ func processInput(files []string, delimiter, outputDelimiter, dataType string, r
 	}
 
 	if len(files) == 0 {
-		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges)
+		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges, zeroTerminated)
 	} else {
 		for _, file := range files {
 			f, err := os.Open(file)
@@ -268,16 +270,36 @@ func processInput(files []string, delimiter, outputDelimiter, dataType string, r
 				fmt.Printf("%s: %s\n", fileOpenError, file) /*  */
 				continue
 			}
-			process(f, delimiter, outputDelimiter, dataType, fieldsRanges)
+			process(f, delimiter, outputDelimiter, dataType, fieldsRanges, zeroTerminated)
 			f.Close()
 		}
 	}
 }
 
-func process(input io.Reader, delimiter, outputDelimiter, dataType string, rangeList []Range) {
+func splitOnNulTerminator(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if atEOF && len(data) == 0 {
+		return 0, nil, nil
+	}
+	if i := Bytes.IndexByte(data, '\000'); i >= 0 {
+		return i + 1, data[0:i], nil
+	}
+	if atEOF {
+		return len(data), data, bufio.ErrFinalToken
+	}
+	return 0, nil, nil
+}
 
-	log.Debug().Msgf("Processing input dataType: [%s] with delimiter [%s], rangeList: [%v] and output delimiter [%s]", dataType, delimiter, rangeList, outputDelimiter)
+func process(input io.Reader, fieldDelimiter, outputDelimiter, dataType string, rangeList []Range, zeroTerminated bool) {
+
+	log.Debug().Msgf("Processing input dataType: [%s] with fieldDelimiter [%s], rangeList: [%v] and output delimiter [%s]", dataType, fieldDelimiter, rangeList, outputDelimiter)
 	scanner := bufio.NewScanner(input)
+	lineTerminator := "\n"
+	if zeroTerminated {
+		log.Debug().Msg("Zero terminated mode")
+		scanner.Split(splitOnNulTerminator)
+		lineTerminator = "\000"
+	}
+	log.Debug().Msgf("Line terminator: [%s]", lineTerminator)
 	for scanner.Scan() {
 		line := scanner.Text()
 
@@ -288,25 +310,30 @@ func process(input io.Reader, delimiter, outputDelimiter, dataType string, range
 		case "byte":
 			handleByteType(line, rangeList, outputDelimiter)
 		case "field":
-			handleFieldType(line, delimiter, outputDelimiter, rangeList)
+			handleFieldType(line, fieldDelimiter, outputDelimiter, rangeList)
 		default:
 			fmt.Println("Invalid data type. Must be 'char', 'byte', or 'field'.")
 			return
 		}
-		fmt.Println()
+		fmt.Printf("%s", lineTerminator)
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading input:", err)
 	}
 }
 
-func handleFieldType(line string, delimiter string, outputDelimiter string, rangeList []Range) {
+func handleFieldType(line string, delimiter, outputDelimiter string, rangeList []Range) {
 	fields := strings.Split(line, delimiter)
 	log.Debug().Msgf("field mode, fields: %v, outputDelimiter:[%s]", fields, outputDelimiter)
 
 	if len(fields) == 1 && onlyDelimited {
 		return
 	}
+
+	if outputDelimiter == "" {
+		outputDelimiter = delimiter
+	}
+
 	line_fields := make([]string, 0)
 	for _, interval := range rangeList {
 		if interval.Start > len(fields) {

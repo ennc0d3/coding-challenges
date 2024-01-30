@@ -31,8 +31,8 @@ Flags:
   -s, --only-delimited            do not print lines not containing delimiters
       --output-delimiter string   use STRING as the output delimiter the default is to use the input delimiter
   -v, --verbose count             verbose output
-  -z, --zero-terminated           line delimiter is NUL, not newline```
-
+  -z, --zero-terminated           line delimiter is NUL, not newline
+```
 
 ### Example(s)
 
@@ -114,5 +114,6 @@ The  [testdata](testdata) is used which to compare alignment with **cut** to run
 * For fun used zerolog for logging
 
 ### Issues/Todo
+
 * Reuse the tests in coreutils, Example the [cut tests](https://github.com/coreutils/coreutils/blob/master/tests/cut/cut.pl)
 * Limited emoj support,meaning the emoj that are joined are counted as multiple characters not as we humans see
