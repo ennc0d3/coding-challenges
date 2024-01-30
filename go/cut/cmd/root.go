@@ -23,6 +23,7 @@ func (e CutError) Error() string {
 	return string(e)
 }
 
+
 var (
 	fileOpenError        = CutError("Failed to open file")
 	parseFieldRangeError = CutError("Failed to parse field range")
@@ -99,6 +100,7 @@ var rootCmd = &cobra.Command{
 		complement, _ := cmd.Flags().GetBool("complement")
 		zeroTerminated, _ := cmd.Flags().GetBool("zero-terminated")
 
+
 		switch {
 		case bytes != "":
 			log.Debug().Msg("Bytes mode")
@@ -111,6 +113,7 @@ var rootCmd = &cobra.Command{
 		case fields != "":
 			log.Debug().Msg("Fields mode")
 			processInput(args, delimiter, outputDelimiter, "field", fields, complement, zeroTerminated)
+
 		}
 
 	},
@@ -154,6 +157,7 @@ func processInput(files []string, delimiter, outputDelimiter, dataType string, r
 			log.Fatal().Err(err).Msg(parseFieldRangeError.Error())
 		}
 	}
+
 
 	if len(files) == 0 {
 		process(os.Stdin, delimiter, outputDelimiter, dataType, fieldsRanges, zeroTerminated)

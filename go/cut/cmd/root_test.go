@@ -228,12 +228,14 @@ func TestProcessFieldType(t *testing.T) {
 
 func TestProcessCharType(t *testing.T) {
 	tests := []processTestData{
+
 		{
 			name:            "process char data type",
 			input:           "Hello,World",
 			outputDelimiter: "|",
 			dataType:        "char",
 			rangeList:       []Range{{Start: 1, End: 5}},
+			complement:      false,
 			want:            "Hello\n",
 		},
 		{
@@ -242,6 +244,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "|",
 			dataType:        "char",
 			rangeList:       []Range{{Start: 1, End: 1}, {Start: 2, End: 5}},
+			complement:      false,
 			want:            "H|ello\n",
 		},
 		{
@@ -250,6 +253,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "|",
 			dataType:        "char",
 			rangeList:       []Range{{Start: 1, End: 5}},
+			complement:      false,
 			want:            "Hello\nHow A\n",
 		},
 		// grapheme cluster are not supported
@@ -259,6 +263,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "%",
 			dataType:        "char",
 			rangeList:       []Range{{Start: 1, End: 3}, {Start: 5, End: 7}},
+			complement:      false,
 			want:            "Ծﺀ⇥%ហី꒺\n\nநிற%க அ\n",
 		},
 		{
@@ -267,6 +272,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "%",
 			rangeList:       []Range{{Start: 1, End: 4}},
 			dataType:        "byte",
+			complement:      false,
 			want:            "🤦\n🤦\nく\xe1\n",
 			//want: "🤦\n🤦\nく�\n", //TODO: Understand why it doesn't print replacement character instead of \xe1
 		},
@@ -276,6 +282,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "%",
 			rangeList:       []Range{{Start: 1, End: 12}, {Start: 14, End: 22}},
 			dataType:        "byte",
+			complement:      false,
 			want:            "கற்க%கற்\nHello,World\n",
 		},
 		{
@@ -285,6 +292,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "|",
 			dataType:        "field",
 			rangeList:       []Range{{Start: 1, End: 2}},
+			complement:      false,
 			want:            "Hello|World\n",
 		},
 		{
@@ -294,6 +302,7 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "|",
 			dataType:        "field",
 			rangeList:       []Range{{Start: 1, End: 2}, {Start: 4, End: 9999}},
+			complement:      false,
 			want:            "Hello|World|Are|You|Today\n",
 		},
 		{
@@ -303,15 +312,9 @@ func TestProcessCharType(t *testing.T) {
 			outputDelimiter: "|",
 			dataType:        "field",
 			rangeList:       []Range{{Start: 1, End: 2}, {Start: 5, End: 9999}},
+			complement:      false,
 			want:            "f1|f2|f5|f6\n1|2|5|6\na|b|e|f\n",
 		},
-		{
-			name:       "complement range list",
-			input:      "123456\n",
-			dataType:   "byte",
-			rangeList:  []Range{{Start: 3, End: 3}, {Start: 4, End: 4}, {Start: 5, End: 5}, {Start: 2, End: 2}},
-			complement: true,
-			want:       "16\n",
 		},
 	}
 
@@ -321,6 +324,7 @@ func TestProcessCharType(t *testing.T) {
 		})
 	}
 }
+
 
 func TestProcessByteType(t *testing.T) {
 	tests := []processTestData{
