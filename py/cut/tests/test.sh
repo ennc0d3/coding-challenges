@@ -48,7 +48,7 @@ runTests() {
 
     bytesOptsTestsCases=(
         "-b 1-9|testdata/tamil.txt"
-        # Fixme: When printing bytes which can't be decode to string, am using
+        # Fixme: When printing bytes which can't be decoded to string, am using
         # replacement characters, ideally, I should just spit the raw bytes and leave
         # encoding to the terminal
         # "-b 1-7|testdata/unicode.txt"
