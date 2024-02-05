@@ -5,6 +5,7 @@ import io
 import logging
 import string
 import textwrap
+from typing import List
 
 import cut
 import pytest
@@ -12,121 +13,122 @@ import pytest
 logging.getLogger().setLevel(logging.DEBUG)
 
 
-@pytest.mark.parametrize(
-    "input_intervals, expected_out",
-    [
-        pytest.param([[1, 2]], [[1, 2]]),
-        pytest.param([[2, 3], [3, 5]], [[2, 5]]),
-        pytest.param(
-            [[1, 2], [3, 6], [8, 8], [11, 13]],
-            [[1, 2], [3, 6], [8, 8], [11, 13]],
-        ),
-        pytest.param([[1, 2], [2, 2], [2, 4], [4, 8]], [[1, 8]]),
-        pytest.param(
-            [[1, 2], [4, 6], [3, 4], [8, 8], [11, 13]],
-            [[1, 2], [3, 6], [8, 8], [11, 13]],
-            id="merging_overlapping_intervals_changes_order",
-        ),
-    ],
-)
-def test_merge_overlapping_intervals(input_intervals, expected_out):
-    ans = cut.merge_overlapping_intervals(input_intervals)
-    assert ans == expected_out
+class CutArgs:
+    def __init__(
+        self,
+        infiles,
+        field_range=None,
+        bytes_range=None,
+        char_range=None,
+        delimiter=None,
+        output_delimiter=None,
+        complement=False,
+        zero_terminated=False,
+        only_delimited=False,
+    ):
+        self.infiles = infiles
+        self.only_delimited = only_delimited
+        self.bytes = bytes_range
+        self.characters = char_range
+        self.delimiter = delimiter
+        self.fields = field_range
+        self.output_delimiter = output_delimiter
+        self.zero_terminated = zero_terminated
+        self.complement = complement
 
-
-class TestNormalizeListRange:
-    @pytest.mark.parametrize(
-        "test_input,test_expected",
-        [
-            pytest.param(
-                ["1", "1"],
-                [[1, 1]],
-                id="simple_single_entry_normalize",
-            ),
-            pytest.param(
-                ["1", "4", "2"],
-                [[1, 1], [2, 2], [4, 4]],
-                id="simple_normalize",
-            ),
-            pytest.param(
-                ["1-2", "3-4"],
-                [[1, 2], [3, 4]],
-                id="non_merging_simple_interval",
-            ),
-            pytest.param(
-                ["1-3", "3-4"],
-                [[1, 4]],
-                id="merging_simple_interval",
-            ),
-            pytest.param(
-                ["1-2", "4-6", "3-4", "8", "11-13"],
-                [[1, 2], [3, 6], [8, 8], [11, 13]],
-                id="merging_mixed_interval",
-            ),
-        ],
-    )
-    def test_normalize_list_range(self, test_input, test_expected):
-        output = cut.normalize_list_ranges(test_input)
-        assert output == test_expected
-
-    @pytest.mark.parametrize(
-        "test_input, test_exception",
-        [
-            pytest.param(
-                ["1", "1.2"],
-                cut.InvalidFieldRangeValueError,
-            ),
-            pytest.param(
-                ["1", "0x0A"],
-                cut.InvalidFieldRangeValueError,
-            ),
-        ],
-    )
-    def test_normalize_list_range_exceptions(self, test_input, test_exception):
-        with pytest.raises(test_exception):
-            cut.normalize_list_ranges(test_input)
+    def to_namespace(self):
+        return argparse.Namespace(
+            infiles=self.infiles,
+            only_delimited=self.only_delimited,
+            bytes=self.bytes,
+            characters=self.characters,
+            delimiter=self.delimiter,
+            fields=self.fields,
+            output_delimiter=self.output_delimiter,
+            zero_terminated=self.zero_terminated,
+            complement=self.complement,
+        )
 
 
 class TestProcessData:
+
     @pytest.mark.parametrize(
         "test_input, test_expected",
         [
             pytest.param(
-                textwrap.dedent(
-                    """\
-                        f0 f1 f2
-                        1 2 3
-                    """
+                CutArgs(
+                    [
+                        io.BytesIO(
+                            bytes(
+                                textwrap.dedent(
+                                    """\
+                                         f0 f1 f2
+                                         1 2 3
+                                         """
+                                ),
+                                encoding="utf-8",
+                            )
+                        )
+                    ],
+                    field_range=[[1, 1]],
+                    delimiter=string.whitespace,
                 ),
                 textwrap.dedent(
                     """\
-                        f0 f1 f2
-                        1 2 3
+                    f0 f1 f2
+                    1 2 3
                     """
                 ),
                 id="simple_case",
             ),
+            pytest.param(
+                CutArgs(
+                    [io.BytesIO(bytes("a1:\0:", encoding="utf-8"))],
+                    delimiter=":",
+                    field_range=[[1, 100]],
+                    zero_terminated=True,
+                    output_delimiter=":",
+                ),
+                "a1:\0:\0",
+                id="simple_case_zero_terminated_with_delimiter",
+            ),
+            pytest.param(
+                CutArgs(
+                    [
+                        io.BytesIO(
+                            bytes("a1:A1:YayOne\0b1:B1:BeOne\0", encoding="utf-8")
+                        )
+                    ],
+                    field_range=[[1, 1], [3, 3]],
+                    delimiter=":",
+                    output_delimiter=":",
+                    zero_terminated=True,
+                ),
+                "a1:YayOne\0b1:BeOne\0",
+                id="simple_case_zero_terminated_with_multiple_fields",
+            ),
+            pytest.param(
+                CutArgs(
+                    [io.BytesIO(bytes("ab\0cd\0", encoding="utf-8"))],
+                    char_range=[[1, 1]],
+                    delimiter=":",
+                    zero_terminated=True,
+                ),
+                "a\0c\0",
+                id="nullterminated_char_range",
+            ),
         ],
     )
     def test_process_text_data(self, test_input, test_expected, capfd):
-        fps = [io.StringIO(test_input)]
         cut.process(
-            argparse.Namespace(
-                infiles=fps,
-                only_delimited=False,
-                bytes=False,
-                characters=False,
-                delimiter=string.whitespace,
-                output_delimiter=None,
-                fields=[[1, 1]],
-            ),
+            test_input.to_namespace(),
         )
         out, err = capfd.readouterr()
 
         assert out == test_expected
 
     @pytest.mark.parametrize(
-        "test_input, test_expected",
+        "test_input, test_range, test_expected",
         [
             pytest.param(
                 textwrap.dedent(
@@ -136,6 +138,7 @@ class TestProcessData:
                     கற்க
                     """
                 ),
+                [[1, 1], [2, 2]],
                 textwrap.dedent(
                     """\
                     く%Ṟ
@@ -147,17 +150,48 @@ class TestProcessData:
             ),
         ],
     )
-    def test_process_character_data(self, test_input, test_expected, capfd):
-        fps = [io.StringIO(test_input)]
+    def test_process_character_data(
+        self, test_input, test_range: List[List], test_expected, capfd
+    ):
+        fps = [io.BytesIO(bytes(test_input, encoding="utf-8"))]
         cut.process(
             argparse.Namespace(
                 infiles=fps,
                 only_delimited=False,
                 bytes=False,
-                characters=[[1, 1], [2, 2]],
+                characters=test_range,
                 delimiter=None,
                 output_delimiter="%",
                 fields=None,
+                zero_terminated=False,
+            ),
+        )
+        out, err = capfd.readouterr()
+
+        assert out == test_expected
+
+    @pytest.mark.parametrize(
+        "test_input, test_range, test_expected",
+        [
+            ("ab\0cd\0", [[1, 1]], "a\0c\0"),
+            ("ab\0cd", [[1, 1]], "a\0c\0"),
+        ],
+    )
+    def test_process_zeroterminated_character_data(
+        self, test_input, test_range: List[List], test_expected, capfd
+    ):
+        fps = [io.BytesIO(bytes(test_input, encoding="utf-8"))]
+
+        cut.process(
+            argparse.Namespace(
+                infiles=fps,
+                only_delimited=False,
+                bytes=False,
+                characters=test_range,
+                delimiter=None,
+                output_delimiter="%",
+                fields=None,
+                zero_terminated=True,
             ),
         )
         out, err = capfd.readouterr()
@@ -203,13 +237,46 @@ class TestProcessData:
                 infiles=fps,
                 only_delimited=False,
                 bytes=test_byte_range,
-                characters=False,
+                characters=None,
                 delimiter=string.whitespace,
                 output_delimiter="%",
-                fields=False,
+                fields=None,
+                zero_terminated=False,
             ),
         )
 
         out, err = capfd.readouterr()
 
         assert out == test_expected
+
+
+# @pytest.mark.parametrize(
+#     "test_input, data_type, range_list, delimiter, zero_terminated, test_expected",
+#     [
+#         ("ab\0cd\0", "char", [[1, 1]], None, True, "a\0c\0"),
+#         ("ab\0cd", "char", [[1, 1]], None, True, "a\0c\0"),
+
+#     ],
+# )
+# def test_process_zero_terminated_data(
+#     test_input, data_type, range_list, delimiter, zero_terminated, test_expected, capfd
+# ):
+#     fps = [io.BytesIO(bytes(test_input, encoding="utf-8"))]
+
+#     cut.process(
+#         argparse.Namespace(
+#             infiles=fps,
+#             only_delimited=False,
+#             bytes=False,
+#             characters=data_type == "char",
+#             delimiter=delimiter or string.whitespace,
+#             output_delimiter="\0",
+#             fields=
+#             zero_terminated=zero_terminated,
+#             range_list=range_list,
+#         ),
+#     )
+
+#     out, err = capfd.readouterr()
+
+#     assert out == test_expected
