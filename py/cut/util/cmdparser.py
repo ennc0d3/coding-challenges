@@ -3,7 +3,7 @@ import logging
 import sys
 import textwrap
 
-from rangeutil import rangeparser
+from . import rangeparser
 
 LOG = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def getargs():
         "-z",
         "--zero-terminated",
         action="store_true",
-        help="line delimiter is NUL, not newline(TODO)",
+        help="line delimiter is NUL, not newline",
     )
 
     parser.add_argument(
