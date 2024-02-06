@@ -1,5 +1,6 @@
 import pytest
-from rangeutil.rangeparser import (
+
+from util.rangeparser import (
     InvalidFieldRangeValueError,
     complement_ranges,
     merge_overlapping_intervals,

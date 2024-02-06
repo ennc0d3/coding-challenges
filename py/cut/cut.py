@@ -4,7 +4,7 @@
 import argparse
 import logging
 
-from cmdparser import cutcmd
+from util import cmdparser
 
 LOG = logging.getLogger()
 
@@ -110,7 +110,7 @@ def setup_logging(args, LOG: logging.Logger):
 
 
 def main():
-    args = cutcmd.getargs()
+    args = cmdparser.getargs()
     global LOG
     setup_logging(args, LOG)
     process(args)
