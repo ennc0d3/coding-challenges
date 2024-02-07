@@ -2,7 +2,7 @@ name: Python
 run-name: Pipeline run by @${{ github.actor }} on ${{ github.ref}} 🚀
 on: [push, pull_request]
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,21 +27,56 @@ jobs:
 
       - uses: chartboost/ruff-action@v1
 
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup python
+        uses: actions/setup-python@v4
+        with:
+            python-version: ${{ matrix.python-version }}
+            cache: pipenv
+
+      - name: Install dependencies
+        run: |
+          cd py/
+          python -m pip install --upgrade pip
+          python -m pip install pipenv
+          pipenv install --dev
+          pipenv run pytest --version
+
+
       - name: Test with pytest
         run: |
           cd py/
-          pipenv run pytest -v --junitxml=junit/test-results-${{ matrix.python-version }}.xml
+          for d in $(ls -d */tests/); do
+            prog=$(dirname $d)
+            pipenv run pytest -v $prog --junitxml=junit/test-results-${prog}-${{ matrix.python-version }}.xml
+          done
 
       - name: Test with shell
         run: |
-          cd py/wc/tests
-          ./test.sh
+          cd py/
+          for d in $(ls -d */tests/); do
+           (
+              prog=$(dirname $d)
+              cd $d
+              echo $PWD
+              ./test.sh | tee  ../../junit/function-test-results-${prog}.xml
+            )
+          done
 
       - name: Upload pytest test results
         uses: actions/upload-artifact@v3
         with:
           name: pytest-results-${{ matrix.python-version }}
-          path: junit/test-results-${{ matrix.python-version }}.xml
+          path: junit/test-results-*${{ matrix.python-version }}.xml
         if: ${{ always() }}
 
 
