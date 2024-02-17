@@ -47,33 +47,34 @@ def process(args):
 
             if args.endofline:
                 args.showends = True
-                args.shownonprinting = True
+                # args.shownonprinting = True
 
             if args.tabs:
                 args.showtabs = True
-                args.shownonprinting = True
+                # args.shownonprinting = True
 
             if args.showall:
                 args.showends = True
                 args.showtabs = True
-                args.shownonprinting = True
+                # args.shownonprinting = True
 
             if args.shownonprinting:
-                line = line.replace(b"\r", b"^M")
+                print("Not implemented")
+                sys.exit(1)
 
             if args.showtabs:
                 line = line.replace(b"\t", b"^I")
 
             if args.showends:
                 line = line.replace(b"\n", b"$\n")
-                line = line.replace(b"\r", b"$\r\n")
+                line = line.replace(b"\r\n", b"$\n")
 
             if args.numbernonblank:
                 if line.strip() == b"" or line.strip() == "$":  # type: ignore
                     print(line)
                 else:
                     lineno += 1
-                    print(f"{lineno} {str(line, 'utf-8')}")
+                    print(f"{lineno} {str(line, 'utf-8')}", end="")
 
             elif args.number:
                 lineno += 1

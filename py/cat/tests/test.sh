@@ -10,16 +10,32 @@ rm -rf "$tmpBaseDir" && mkdir -p $outDir
 
 TestProg="../${prog}.py"
 ActProg="cat"
+set -vx
 
 runTests() {
+
+    set -x
 
     idx=0
 
     optTests=(
         # Simple cat
         "-n|testdata/test.txt"
+        #
+        "-b|testdata/test.txt"
+        #
+        "-sn|testdata/test.txt"
+        #
+        "-sb|testdata/test.txt"
+        "-snb|testdata/test.txt"
+        "-ET|testdata/test_specialchars.txt"
+        "-s|testdata/test_specialchars.txt"
+
     )
-    runTestLogic "${optTests[@]}"
+    for test in "${optTests[@]}"; do
+        echo "Test: $test"
+        runTestLogic "$test"
+    done
     if [[ $(grep -c "FAIL" $outDir/runtest.log) -gt 0 ]]; then
         echo "[ERROR]: One or more tests failed. see $outDir/runtest.log"
         exit 1
@@ -30,7 +46,6 @@ runTests() {
 }
 
 runTestLogic() {
-
     for opt in "$@"; do
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName="testdata/test.txt"
