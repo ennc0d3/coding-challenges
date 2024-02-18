@@ -49,7 +49,7 @@ runTestLogic() {
     for opt in "$@"; do
         args=$(echo "$opt" | cut -f1 -d"|")
         fileName="testdata/test.txt"
-        if [[ "$opt" =~ ".*\|" ]]; then
+        if [[ "$opt" =~ .*\| ]]; then
             fileName=$(echo "$opt" | cut -f2 -d"|")
         fi
 
@@ -60,15 +60,12 @@ runTestLogic() {
         idx=$((idx + 1))
         cmd="$TestProg ${args} $fileName"
         actCmd="$ActProg ${args} $fileName"
-        ($cmd >"$outDir"/"$idx".act)
-        ($actCmd >"$outDir"/"$idx".exp)
-        (
-            if diff -w "$outDir"/"$idx".act "$outDir"/"$idx".exp; then
-                echo "$cmd: OK"
-            else
-                echo "$cmd: FAIL"
-            fi
-        ) | tee -a "$outDir"/runtest.log
+        echo "Command: diff <($cmd) <($actCmd)"
+        if diff <($cmd) <($actCmd); then
+            echo "Command: $cmd and $actCmd are same: OK"
+        else
+            echo "Command: $cmd and $actCmd are different: FAIL"
+        fi | tee -a "$outDir"/runtest.log
         echo "# ----------------------------"
     done
 

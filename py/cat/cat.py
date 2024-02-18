@@ -74,13 +74,24 @@ def process(args):
                     print(line)
                 else:
                     lineno += 1
-                    print(f"{lineno} {str(line, 'utf-8')}", end="")
+                    linewidth = get_lineno_width(lineno)
+                    print(f"{lineno:{linewidth}} {str(line, 'utf-8')}", end="")
 
             elif args.number:
                 lineno += 1
-                print(f"{lineno} {str(line, 'utf-8')}", end="")
+                linewidth = get_lineno_width(lineno)
+                print(f"{lineno:{linewidth}} {str(line, 'utf-8')}", end="")
             else:
                 print(f"{str(line, 'utf-8')}", end="")
+
+            blanks = 0
+
+
+def get_lineno_width(lineno):
+    width = len(str(lineno))
+    if width < 6:
+        width = 6
+    return width
 
 
 class CustomHelpFormatter(
