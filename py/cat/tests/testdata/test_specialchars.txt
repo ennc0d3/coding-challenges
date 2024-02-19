@@ -1,0 +1,14 @@
+1- 1 2 3
+
+
+4- Multiple repeated blanks above
+
+6- "One repeated blank"
+
+8- With	two tabs between[		] brackets
+
+10- With a tab[	]and ctrl-M[]
+
+13- Line with two Ctrl-M characters[] next
+
+17- END

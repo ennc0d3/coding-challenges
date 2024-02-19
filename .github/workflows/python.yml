@@ -57,6 +57,7 @@ jobs:
           cd py/
           for d in $(ls -d */tests/); do
             prog=$(dirname $d)
+            echo "Runing tests for $prog"
             pipenv run pytest -v $prog --junitxml=junit/test-results-${prog}-${{ matrix.python-version }}.xml
           done
 
