@@ -14,7 +14,6 @@ Additionally, I am using these tasks to enhance the testing methods, GitHub acti
 | :---      |:---         |
 | [Write your own wc tool](https://codingchallenges.fyi/challenges/challenge-wc)| [py](py/wc/README.md) [go](go/wc/README.md)|
 | [Write your own cut tool](https://codingchallenges.fyi/challenges/challenge-cut/)| [py](py/cut/README.md) [go](go/cut/README.md)|
-| [Write your own cat tool](https://codingchallenges.fyi/challenges/challenge-cat/)| [py](py/cat/README.md) [go](go/cat/README.md)|
 
 ### References
 
