@@ -10,8 +10,11 @@ rm -rf "$tmpBaseDir" && mkdir -p $outDir
 
 TestProg="../${prog}.py"
 ActProg="cat"
+set -vx
 
 runTests() {
+
+    set -x
 
     idx=0
 
