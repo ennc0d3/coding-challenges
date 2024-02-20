@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+
+
+import argparse
+import logging
+import sys
+
+LOG = logging.getLogger()
+
+PROG = "cut"
+DESCRIPTION = "A program to count words {PROG}"
+__VERSION = "0.0.1"
+
+
+def run(args):
+    files = args.infiles
+    result = process(files)
+    output(args, result)
+
+
+def process(files: list[str]):
+    return dict()
+
+
+def output(args, result):
+    pass
+
+
+def getargs():
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument(
+        "-m",
+        "--chars",
+        default=False,
+        action="store_true",
+        dest="charcount",
+        help="Count the characters",
+    )
+    parser.add_argument(
+        "-c",
+        "--bytes",
+        default=False,
+        action="store_true",
+        dest="bytecount",
+        help="Count the bytes",
+    )
+    parser.add_argument(
+        "-l",
+        "--lines",
+        default=False,
+        action="store_true",
+        dest="linecount",
+        help="Count the lines",
+    )
+    parser.add_argument(
+        "-w",
+        "--word",
+        default=False,
+        action="store_true",
+        dest="wordcount",
+        help="Count the words",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s %(__VERSION)s",
+        help="output the version and exit",
+    )
+
+    parser.add_argument(
+        "infiles",
+        nargs="*",
+        type=argparse.FileType("rb"),
+        default=[sys.stdin],
+        help="The name of the input files",
+    )
+
+    # Debug options
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        default=0,
+        action="count",
+        help="Increase the verbosity",
+    )
+
+    args = parser.parse_args()
+    return args
+
+
+def setup_logging(args):
+    LOG = logging.getLogger()
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    ch.setFormatter(formatter)
+    ch.setLevel(logging.DEBUG)
+    LOG.addHandler(ch)
+    logLevel = logging.WARN
+    if args.verbose == 1:
+        logLevel = logging.INFO
+    elif args.verbose > 1:
+        logLevel = logging.DEBUG
+    LOG.setLevel(logLevel)
+    LOG.info("Setup logger")
+
+
+def main():
+    args = getargs()
+    setup_logging(args)
+    LOG.info("Starting %S", PROG)
+    run(args)
+
+
+if __name__ == "__main__":
+    main()
