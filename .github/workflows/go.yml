@@ -69,12 +69,13 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
 
-
     - name: Go Build
       run: |
         for module in $(find go -name go.mod -exec dirname {} \;); do
+          echo "Module name: ${modeule}"
           echo "Building $(basename $module) in $PWD/$module directory..."
           cd $module
+          echo "Dir: $PWD"
           go build -v -o ./$(basename $module) ./
           cd -
         done
