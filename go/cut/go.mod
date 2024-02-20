@@ -3,7 +3,7 @@ module github.com/enncod3/coding-challenges/cut
 go 1.21
 
 require (
-	github.com/rs/zerolog v1.31.0
+	github.com/rs/zerolog v1.32.0
 	github.com/spf13/cobra v1.8.0
 )
 

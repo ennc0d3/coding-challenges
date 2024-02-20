@@ -1,7 +1,7 @@
 go 1.21
 
 use (
+	./go/cat
 	./go/cut
 	./go/wc
-	./go/cat
 )
